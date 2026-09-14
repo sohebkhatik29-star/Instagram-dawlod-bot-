@@ -51,28 +51,20 @@ async def run_bot():
         from config import OWNER_IDS, SUDO_USERS
 
         public_commands = [
-            BotCommand("start", "Start bot & open main dashboard"),
-            BotCommand("help", "Help & list of commands"),
-            BotCommand("about", "About bot & details"),
-            BotCommand("dl", "Download Instagram Reel/Post/Video"),
-            BotCommand("ping", "Check bot latency & speed"),
-            BotCommand("id", "Get Telegram chat and user ID"),
-            BotCommand("info", "View user details")
+            BotCommand("start", "Start bot & open main dashboard")
         ]
         await app.set_bot_commands(public_commands, scope=BotCommandScopeDefault())
-        log.info("✅ Public Telegram Menu commands registered for standard users!")
+        log.info("✅ Public Telegram Menu registered with only /start for standard users!")
 
         owner_commands = [
             BotCommand("start", "Start bot & open main dashboard"),
             BotCommand("addfsub", "➕ Add Force-Sub Channel"),
             BotCommand("delfsub", "➖ Remove Force-Sub Channel"),
             BotCommand("fsubs", "📢 View All Force-Sub Channels"),
-            BotCommand("stats", "📊 View bot stats"),
+            BotCommand("stats", "📊 View bot stats & users"),
             BotCommand("broadcast", "📢 Broadcast message to users"),
-            BotCommand("help", "Help & list of commands"),
-            BotCommand("dl", "Download Instagram Reel/Post/Video"),
-            BotCommand("ping", "Check bot latency & speed"),
-            BotCommand("id", "Get Telegram chat and user ID")
+            BotCommand("help", "Help & guide"),
+            BotCommand("ping", "Check bot latency & speed")
         ]
         for oid in set(OWNER_IDS + SUDO_USERS):
             try:

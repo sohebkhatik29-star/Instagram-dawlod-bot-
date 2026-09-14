@@ -7,7 +7,23 @@ _conn.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, us
 _conn.execute("CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY, title TEXT)")
 _conn.execute("CREATE TABLE IF NOT EXISTS warns (chat_id INTEGER, user_id INTEGER, count INTEGER DEFAULT 0, PRIMARY KEY(chat_id, user_id))")
 _conn.execute("CREATE TABLE IF NOT EXISTS force_sub_channels (channel_id TEXT PRIMARY KEY, title TEXT, invite_link TEXT)")
+_conn.execute("CREATE TABLE IF NOT EXISTS downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
 _conn.commit()
+
+def record_download(user_id):
+    with _lock:
+        try:
+            _conn.execute("INSERT INTO downloads (user_id) VALUES (?)", (user_id,))
+            _conn.commit()
+        except Exception:
+            pass
+
+def total_downloads():
+    with _lock:
+        try:
+            return _conn.execute("SELECT COUNT(*) FROM downloads").fetchone()[0]
+        except Exception:
+            return 0
 
 def add_fsub_channel(channel_id, title, invite_link):
     with _lock:

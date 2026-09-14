@@ -12,25 +12,7 @@ HELP_TEXT = (
     "   • 🎬 <b>Video + Audio</b> — Full HD video with crystal-clear sound\n"
     "   • 📹 <b>MP4 Video Only</b> — High quality video without sound (Muted)\n"
     "   • 🎵 <b>MP3 Audio Only</b> — Extract BGM / Audio track as MP3\n"
-    "3️⃣ <b>Fast Delivery:</b> Click your preferred button, wait a few seconds and your media will be sent instantly!\n\n"
-    "───────────────\n"
-    "⚙️ <b>Available Commands:</b>\n"
-    "• /start — Start bot & view dashboard\n"
-    "• /help — Show this help & guide message\n"
-    "• /about — Show bot info and developer details\n"
-    "• /ping — Check bot latency and server response time\n"
-    "• /id — Get your Telegram User ID and Chat ID\n"
-    "• /info — Retrieve profile info (reply to any user)\n\n"
-    "👑 <b>Owner Force-Sub Commands:</b>\n"
-    "• <code>/addfsub</code> — Add new force-sub channel (Forward message)\n"
-    "• <code>/delfsub</code> — Remove force-sub channel\n"
-    "• <code>/fsubs</code> — View all active force-sub channels\n\n"
-    "👥 <b>Group Features:</b>\n"
-    "Add me to your group to download Instagram links directly in group chats! Group admins can also use /mute, /ban, /kick, /pin, /purge, and /warn.\n\n"
-    "───────────────\n"
-    "📢 <b>Updates Channel:</b> @MoviesGroupG3\n"
-    "💬 <b>Discussion Group:</b> @ash_movie_j\n"
-    "⚡ <i>Fastest Instagram Downloader on Telegram</i>"
+    "3️⃣ <b>Fast Delivery:</b> Click your preferred button, wait a few seconds and your media will be sent instantly!"
 )
 
 def register(app):
@@ -87,6 +69,7 @@ def register(app):
     @app.on_message(filters.command("stats"))
     async def stats_cmd(client, message):
         from config import OWNER_USERNAMES, FORCE_SUB_CHANNEL
+        from plugins.start import START_TIME
         is_owner = (
             message.from_user.id in (OWNER_IDS + SUDO_USERS) or
             (message.from_user.username and any(message.from_user.username.lower() == o.lower() for o in OWNER_USERNAMES if o))
@@ -96,13 +79,23 @@ def register(app):
             return
 
         u, c = db.stats()
+        dl_count = db.total_downloads()
+        fsubs = db.get_all_fsub_channels()
+
+        uptime_sec = int(time.time() - START_TIME)
+        hours, rem = divmod(uptime_sec, 3600)
+        minutes, seconds = divmod(rem, 60)
+        uptime_str = f"{hours}h {minutes}m {seconds}s"
+
         await message.reply_text(
             bold(
-                f"📊 <b>Bot Statistics</b>\n\n"
-                f"👥 Total Users: <code>{u}</code>\n"
-                f"💬 Total Groups: <code>{c}</code>\n\n"
-                f"📢 Updates Channel: @{FORCE_SUB_CHANNEL}\n"
-                f"💬 Discussion Group: @ash_movie_j"
+                f"📊 <b>Ash Insta Downloader — Statistics & Analytics</b>\n\n"
+                f"👤 <b>Total Users (Bot Used):</b> <code>{u}</code>\n"
+                f"👥 <b>Total Active Groups:</b> <code>{c}</code>\n"
+                f"📥 <b>Total Downloads Served:</b> <code>{dl_count}</code>\n"
+                f"📢 <b>Active Force-Sub Channels:</b> <code>{len(fsubs)}</code>\n"
+                f"⏱️ <b>Server Uptime:</b> <code>{uptime_str}</code>\n"
+                f"⚡ <b>Engine Status:</b> 24/7 Running Smoothly"
             ),
             quote=True
         )

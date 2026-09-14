@@ -54,10 +54,7 @@ def get_welcome_text(user):
         f"👋 Hello {user_mention}, welcome to <b>Ash Insta Downloader Bot</b>! ⚡\n\n"
         f"I'm an advanced Instagram Downloader Bot.\n"
         f"Send any Instagram Reel, Video, or Post link here and I will download it for you instantly in high quality!\n\n"
-        f"ℹ️ <b>More info to click Help button below!</b>\n\n"
-        f"───────────────\n"
-        f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-        f"💬 <b>Discussion Group:</b> @ash_movie_j"
+        f"ℹ️ <b>More info to click Help button below!</b>"
     )
 
 def get_about_text():

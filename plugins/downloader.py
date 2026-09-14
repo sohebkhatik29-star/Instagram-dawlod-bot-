@@ -302,6 +302,12 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
 
         await status.delete()
 
+        # Record download in DB
+        try:
+            db.record_download(user.id if user else 0)
+        except Exception:
+            pass
+
         # Send download event to Log Channel
         try:
             await log_download(client, user, mode_title, url)
