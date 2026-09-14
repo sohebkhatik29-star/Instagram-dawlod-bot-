@@ -208,7 +208,10 @@ def register(app):
         if not u: return False
         if u.id in (OWNER_IDS + SUDO_USERS): return True
         if u.username and any(u.username.lower() == o.lower() for o in OWNER_USERNAMES if o): return True
-        return False
+        try:
+            return db.is_db_admin(u.id)
+        except Exception:
+            return False
 
     async def check_and_add_channel(client, message, target, added_by):
         """Checks if bot is admin in channel; if admin, adds to Force-Sub DB; else alerts."""
@@ -363,52 +366,90 @@ def register(app):
 
     def _build_fsubs_markup(channels):
         buttons = []
-        for ch in channels:
+        for idx, ch in enumerate(channels, 1):
             ch_id = ch.get("raw") or ch.get("id")
             title = ch.get("title") or str(ch_id)
             buttons.append([
-                InlineKeyboardButton(f"🗑️ Remove {title[:20]}", callback_data=f"delfsub_{ch_id}")
+                InlineKeyboardButton(f"🗑️ Delete {idx} Channel ({title[:18]})", callback_data=f"delfsub_{ch_id}")
             ])
+        buttons.append([
+            InlineKeyboardButton("❌ Close Menu", callback_data="close_admin_menu")
+        ])
         return InlineKeyboardMarkup(buttons)
 
-    @app.on_message(filters.command(["delfsub", "remfsub", "removefsub", "del_fsub"]))
+    @app.on_message(filters.command(["delfsub", "remfsub", "removefsub", "del_fsub", "deletesub", "delchannel"]))
     async def del_fsub_cmd(client, message):
-        """Remove a dynamic Force-Sub channel"""
+        """Remove a dynamic Force-Sub channel (interactive or direct)"""
         if not _is_owner_user(message.from_user):
-            await message.reply_text("⛔ Owner only command.", quote=True)
+            await message.reply_text("⛔ Owner / Admin only command.", quote=True)
+            return
+
+        from utils.force_sub import get_all_active_fsubs
+
+        # Option A: Replied to a forwarded message from the channel
+        if message.reply_to_message and message.reply_to_message.forward_from_chat:
+            target_id = str(message.reply_to_message.forward_from_chat.id)
+            target_title = message.reply_to_message.forward_from_chat.title or target_id
+            db.del_fsub_channel(target_id)
+            active = get_all_active_fsubs()
+            await message.reply_text(
+                f"🗑️ <b>Channel Removed Successfully!</b>\n\n"
+                f"📢 <b>Channel:</b> {esc(target_title)}\n"
+                f"🆔 <b>ID:</b> <code>{target_id}</code>\n\n"
+                f"📋 Remaining Active Channels: <b>{len(active)}</b>\n"
+                f"Active list dekhne ke liye: <code>/fsubs</code>",
+                quote=True
+            )
             return
 
         parts = message.text.split(maxsplit=1)
-        if len(parts) < 2:
-            await message.reply_text(bold("Usage: /delfsub <channel_id or @username>"), quote=True)
+        # Option B: Direct argument given like /delfsub -1002194570573 or /delfsub @channel
+        if len(parts) >= 2 and parts[1].strip():
+            raw_ch = parts[1].strip()
+            db.del_fsub_channel(raw_ch)
+            active = get_all_active_fsubs()
+            await message.reply_text(
+                f"🗑️ <b>Channel Removed Successfully!</b>\n\n"
+                f"Target: <code>{esc(raw_ch)}</code> ko Force-Sub list se hata diya gaya hai.\n\n"
+                f"📋 Remaining Active Channels: <b>{len(active)}</b>\n"
+                f"Active list dekhne ke liye: <code>/fsubs</code>",
+                quote=True
+            )
             return
 
-        raw_ch = parts[1].strip()
-        db.del_fsub_channel(raw_ch)
-        if raw_ch.startswith("@"):
-            db.del_fsub_channel(raw_ch[1:])
-        else:
-            db.del_fsub_channel(f"@{raw_ch}")
+        # Option C: No argument given -> show interactive 1-click delete menu!
+        active = get_all_active_fsubs()
+        if not active:
+            await message.reply_text(
+                "ℹ️ <b>Koi bhi Force-Sub channel added nahi hai.</b>\n\n"
+                "Naya channel add karne ke liye: <code>/addfsub</code>",
+                quote=True
+            )
+            return
 
-        await message.reply_text(
-            f"🗑️ <b>Channel removed from Force-Sub list!</b>\n"
-            f"<code>{esc(raw_ch)}</code> ko Force-Sub list se hata diya gaya hai.\n\n"
-            f"Check active list with: <code>/fsubs</code>",
-            quote=True
+        text = (
+            "🗑️ <b>Delete Force-Sub Channel:</b>\n\n"
+            "Aap jis channel ko remove karna chahte hain, niche diye gaye <b>Delete Button</b> par click karein:\n\n"
         )
+        for i, ch in enumerate(active, 1):
+            text += f"{i}️⃣ <b>{esc(ch.get('title') or str(ch.get('id')))}</b>\n"
+            text += f"   • ID: <code>{ch.get('raw') or ch.get('id')}</code>\n\n"
+        text += "💡 Ya direct command use karein: <code>/delfsub &lt;channel_id&gt;</code>"
+
+        await message.reply_text(text, reply_markup=_build_fsubs_markup(active), quote=True)
 
     @app.on_message(filters.command(["fsubs", "forcesub", "channels", "forcesubs"]))
     async def list_fsubs_cmd(client, message):
         """View all active Force-Sub channels with 1-click delete buttons"""
         if not _is_owner_user(message.from_user):
-            await message.reply_text("⛔ Owner only command.", quote=True)
+            await message.reply_text("⛔ Owner / Admin only command.", quote=True)
             return
 
         from utils.force_sub import get_all_active_fsubs
         active = get_all_active_fsubs()
         if not active:
             await message.reply_text(
-                "ℹ️ <b>Abhi koi bhi dynamic Force-Sub channel set nahi hai.</b>\n\n"
+                "ℹ️ <b>Abhi koi bhi Force-Sub channel set nahi hai.</b>\n\n"
                 "Naya channel add karne ke liye: <code>/addfsub</code>",
                 quote=True
             )
@@ -422,30 +463,26 @@ def register(app):
 
         text += "───────────────\n"
         text += "➕ <b>Add Channel:</b> <code>/addfsub</code>\n"
-        text += "➖ <b>Remove Channel:</b> Niche diye gaye <b>Remove</b> button par click karein ya <code>/delfsub &lt;ID&gt;</code> karein."
+        text += "➖ <b>Remove Channel:</b> Niche diye gaye <b>Delete</b> button par click karein ya <code>/delfsub &lt;ID&gt;</code> karein."
 
         await message.reply_text(text, reply_markup=_build_fsubs_markup(active), quote=True)
 
     @app.on_callback_query(filters.regex(r"^delfsub_(.+)"))
     async def del_fsub_callback(client, cq):
         if not _is_owner_user(cq.from_user):
-            await cq.answer("⛔ Only owner can do this.", show_alert=True)
+            await cq.answer("⛔ Only owner / admin can do this.", show_alert=True)
             return
 
         target_ch = cq.matches[0].group(1)
         db.del_fsub_channel(target_ch)
-        if str(target_ch).startswith("@"):
-            db.del_fsub_channel(str(target_ch)[1:])
-        else:
-            db.del_fsub_channel(f"@{target_ch}")
 
-        await cq.answer(f"🗑️ Channel {target_ch} removed!", show_alert=True)
+        await cq.answer("🗑️ Channel removed from Force-Sub!", show_alert=True)
 
         from utils.force_sub import get_all_active_fsubs
         active = get_all_active_fsubs()
         if not active:
             try:
-                await cq.message.edit_text("ℹ️ Sabhi Force-Sub channels remove ho gaye hain.\n\nNaya channel add karne ke liye: <code>/addfsub</code>")
+                await cq.message.edit_text("ℹ️ <b>Sabhi Force-Sub channels remove ho gaye hain.</b>\n\nNaya channel add karne ke liye: <code>/addfsub</code>")
             except Exception:
                 pass
             return
@@ -460,5 +497,13 @@ def register(app):
         try:
             await cq.message.edit_text(text, reply_markup=_build_fsubs_markup(active))
         except Exception:
+            pass
+
+    @app.on_callback_query(filters.regex(r"^close_admin_menu$"))
+    async def close_admin_menu_cb(client, cq):
+        try:
+            await cq.message.delete()
+        except Exception:
+            await cq.answer()
             pass
 

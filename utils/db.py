@@ -29,13 +29,46 @@ def total_downloads():
 
 def add_fsub_channel(channel_id, title, invite_link):
     with _lock:
-        _conn.execute("INSERT INTO force_sub_channels VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET title=excluded.title,invite_link=excluded.invite_link", (str(channel_id), title or "", invite_link or ""))
+        target = str(channel_id).strip()
+        _conn.execute("CREATE TABLE IF NOT EXISTS disabled_fsubs (channel_id TEXT PRIMARY KEY)")
+        _conn.execute("DELETE FROM disabled_fsubs WHERE channel_id=?", (target,))
+        if target.startswith("@"):
+            _conn.execute("DELETE FROM disabled_fsubs WHERE channel_id=?", (target[1:],))
+        else:
+            _conn.execute("DELETE FROM disabled_fsubs WHERE channel_id=?", (f"@{target}",))
+        _conn.execute("INSERT INTO force_sub_channels VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET title=excluded.title,invite_link=excluded.invite_link", (target, title or "", invite_link or ""))
         _conn.commit()
 
 def del_fsub_channel(channel_id):
     with _lock:
-        _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (str(channel_id),))
+        target = str(channel_id).strip()
+        _conn.execute("CREATE TABLE IF NOT EXISTS disabled_fsubs (channel_id TEXT PRIMARY KEY)")
+        _conn.execute("INSERT OR IGNORE INTO disabled_fsubs VALUES (?)", (target,))
+        _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (target,))
+        if target.startswith("-100"):
+            _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (target[4:],))
+            _conn.execute("INSERT OR IGNORE INTO disabled_fsubs VALUES (?)", (target[4:],))
+        elif target.isdigit():
+            _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (f"-100{target}",))
+            _conn.execute("INSERT OR IGNORE INTO disabled_fsubs VALUES (?)", (f"-100{target}",))
+        if target.startswith("@"):
+            clean = target[1:]
+            _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (clean,))
+            _conn.execute("DELETE FROM force_sub_channels WHERE invite_link LIKE ?", (f"%{clean}%",))
+            _conn.execute("INSERT OR IGNORE INTO disabled_fsubs VALUES (?)", (clean,))
+        else:
+            _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (f"@{target}",))
+            _conn.execute("DELETE FROM force_sub_channels WHERE invite_link LIKE ?", (f"%{target}%",))
+            _conn.execute("INSERT OR IGNORE INTO disabled_fsubs VALUES (?)", (f"@{target}",))
         _conn.commit()
+
+def get_disabled_fsubs():
+    with _lock:
+        try:
+            _conn.execute("CREATE TABLE IF NOT EXISTS disabled_fsubs (channel_id TEXT PRIMARY KEY)")
+            return [r[0] for r in _conn.execute("SELECT channel_id FROM disabled_fsubs").fetchall()]
+        except Exception:
+            return []
 
 def get_all_fsub_channels():
     with _lock:

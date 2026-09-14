@@ -25,10 +25,11 @@ def _normalize_target(ch_identifier):
 def get_all_active_fsubs():
     """Returns list of dict: [{'id': target_id, 'title': title, 'url': link}]"""
     channels = []
+    disabled = set(db.get_disabled_fsubs())
     
     # 1. Default channel from config/env
     default_ch = str(FORCE_SUB_CHANNEL or "").strip()
-    if default_ch:
+    if default_ch and default_ch not in disabled and f"@{default_ch.replace('@','')}" not in disabled and default_ch.replace("@", "") not in disabled:
         ch_clean = default_ch.replace("https://t.me/", "").replace("@", "")
         channels.append({
             "id": _normalize_target(default_ch),
@@ -40,6 +41,8 @@ def get_all_active_fsubs():
     # 2. Dynamic channels from database
     db_channels = db.get_all_fsub_channels()
     for ch_id, title, invite_link in db_channels:
+        if ch_id in disabled or f"@{ch_id.replace('@','')}" in disabled or ch_id.replace("@", "") in disabled:
+            continue
         norm = _normalize_target(ch_id)
         # Avoid duplicate if same as default
         if any(c["raw"] == ch_id or str(c["id"]) == str(norm) for c in channels):
@@ -101,11 +104,9 @@ def join_markup(unjoined_channels=None):
         unjoined_channels = get_all_active_fsubs()
 
     buttons = []
-    # Add a join button for each required channel
+    # Add a join button for each required channel numbered "1 Channel", "2 Channel", etc.
     for idx, ch in enumerate(unjoined_channels, 1):
-        btn_label = f"📢 Join Channel {idx}" if len(unjoined_channels) > 1 else "📢 Join Updates Channel"
-        if ch.get("title") and not ch.get("title").startswith("-"):
-            btn_label = f"📢 Join {ch['title']}"
+        btn_label = f"📢 {idx} Channel"
         buttons.append([InlineKeyboardButton(btn_label, url=ch["url"])])
 
     # Check button
@@ -122,13 +123,13 @@ def join_text(unjoined_channels=None):
 
     ch_list_str = ""
     for idx, ch in enumerate(unjoined_channels, 1):
-        ch_list_str += f"{idx}. <b>{ch['title']}</b>\n"
+        ch_list_str += f"👉 <b>{idx} Channel</b>\n"
 
     return bold(
         "🔒 <b>Channel Join Required!</b>\n\n"
-        "Aapne abhi tak hamare official channels join nahi kiye hain.\n\n"
+        "Aapne abhi tak hamare required channel(s) join nahi kiye hain.\n\n"
         "Bot use karne ke liye pehle niche diye gaye channel(s) ko join karein:\n\n"
         f"{ch_list_str}\n"
-        "1. Upar diye gaye channel link(s) par click karke <b>Join</b> karein.\n"
-        "2. Uske baad <b>'✅ I\\'ve Joined — Unlock Bot'</b> dabayein aur turant download start karein!"
+        "1. Upar diye gaye <b>Channel</b> button par click karke <b>Join</b> karein.\n"
+        "2. Uske baad <b>'✅ I\\'ve Joined — Unlock Bot'</b> dabayein aur turant bot unlock karein!"
     )
