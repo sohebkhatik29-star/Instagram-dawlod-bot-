@@ -329,7 +329,7 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
 
 def register(app):
 
-    @app.on_message((filters.private | filters.group) & filters.text)
+    @app.on_message((filters.private | filters.group) & filters.text & ~filters.regex(r"^/"), group=2)
     async def link_listener(client, message):
         if not message.text or message.text.startswith("/"): return
         links = extract_instagram_links(message.text)

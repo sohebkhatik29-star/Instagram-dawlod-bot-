@@ -278,13 +278,14 @@ def register(app):
         )
         return True
 
-    @app.on_message(filters.command(["addfsub", "addchannel"]))
+    @app.on_message(filters.command(["addfsub", "addchannel", "add_fsub", "adeforcesub", "forcesub_add"]))
     async def add_fsub_cmd(client, message):
         """Add a channel to Force-Sub dynamically from bot"""
         if not _is_owner_user(message.from_user):
             await message.reply_text(
                 f"⛔ <b>Access Denied:</b> This command is restricted to Bot Owners.\n"
-                f"Your User ID: <code>{message.from_user.id}</code>",
+                f"Your User ID: <code>{message.from_user.id if message.from_user else 'Unknown'}</code>\n\n"
+                f"💡 Agar aap owner hain, toh apna User ID <code>{message.from_user.id if message.from_user else ''}</code> .env file me OWNER_IDS me daalein.",
                 quote=True
             )
             return
@@ -303,12 +304,12 @@ def register(app):
             "Ab aap jis channel ko Force-Sub me add karna chahte hain:\n"
             "👉 <b>Us channel se koi bhi message yahan Forward karein</b> (Forward Tag ke sath)!\n\n"
             "⚠️ <b>Important:</b> Pehle bot ko us channel me <b>Admin</b> banayein taaki bot check kar sake ki user ne channel join kiya hai ya nahi.\n\n"
-            "<i>(Aap direct username bhi bhej sakte hain, jaise: <code>@MyChannel</code>)</i>\n\n"
+            "<i>(Aap direct username bhi bhej sakte hain, jaise: <code>@MyChannel</code> ya <code>-100...</code>)</i>\n\n"
             "❌ Cancel karne ke liye <code>/cancel</code> likhein.",
             quote=True
         )
 
-    @app.on_message(filters.private & ~filters.command(["addfsub", "addchannel", "delfsub", "fsubs", "start"]))
+    @app.on_message(filters.private & filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in WAITING_FSUB_FORWARD)), group=1)
     async def fsub_forward_listener(client, message):
         """Listens for the forwarded channel message or channel username from the owner"""
         if not message.from_user:
@@ -317,7 +318,7 @@ def register(app):
         if user_id not in WAITING_FSUB_FORWARD:
             return
 
-        if message.text and message.text.strip().lower() == "/cancel":
+        if message.text and message.text.strip().lower() in ("/cancel", "cancel"):
             WAITING_FSUB_FORWARD.discard(user_id)
             await message.reply_text("❌ Force-Sub add process cancel ho gaya.", quote=True)
             return
@@ -329,8 +330,10 @@ def register(app):
         # Case 2: Owner pasted username or channel ID or t.me link
         elif message.text:
             text = message.text.strip()
-            if text.startswith("@") or text.startswith("-100"):
+            if text.startswith("@") or text.startswith("-100") or (text.startswith("-") and text[1:].isdigit()):
                 target = int(text) if (text.startswith("-") and text[1:].isdigit()) else text
+            elif text.isdigit():
+                target = int(f"-100{text}")
             elif "t.me/" in text:
                 import re
                 m = re.search(r"t\.me/([A-Za-z0-9_]+)", text)
@@ -340,7 +343,7 @@ def register(app):
         if not target:
             await message.reply_text(
                 "⚠️ <b>Channel Message Nahi Mila!</b>\n\n"
-                "Kripya us channel se koi message <b>Forward</b> karein (Forward Tag on hona chahiye), ya fir direct username bhejein jaise: <code>@MyChannel</code>.\n\n"
+                "Kripya us channel se koi message <b>Forward</b> karein (Forward Tag on hona chahiye), ya fir direct username/ID bhejein jaise: <code>@MyChannel</code>.\n\n"
                 "Cancel karne ke liye: <code>/cancel</code>",
                 quote=True
             )
@@ -359,7 +362,7 @@ def register(app):
             ])
         return InlineKeyboardMarkup(buttons)
 
-    @app.on_message(filters.command(["delfsub", "remfsub", "removefsub"]))
+    @app.on_message(filters.command(["delfsub", "remfsub", "removefsub", "del_fsub"]))
     async def del_fsub_cmd(client, message):
         """Remove a dynamic Force-Sub channel"""
         if not _is_owner_user(message.from_user):
