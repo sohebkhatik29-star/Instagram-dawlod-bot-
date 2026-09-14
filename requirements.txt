@@ -1,0 +1,8 @@
+pyrofork
+TgCrypto
+yt-dlp
+instaloader
+flask
+requests
+python-dotenv
+Pillow

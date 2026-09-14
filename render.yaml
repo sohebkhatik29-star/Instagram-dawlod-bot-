@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: movies-instagram-downloader-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 main.py
+    plan: free
+    envVars:
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: OWNER_IDS
+        value: "8192070400"
+      - key: FORCE_SUB_CHANNEL
+        value: "MoviesGroupG3"
+      - key: BOT_NAME
+        value: "Movies Instagram Downloader"
+      - key: PORT
+        value: "8080"

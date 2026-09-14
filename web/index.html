@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Radhey — Instagram Downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0E0F13;--panel:#16181F;--panel2:#1C1F28;--border:#262A34;--text:#EDEDEF;--muted:#8B8F9B;--ig1:#F0356B;--ig2:#FFA35C;--tg:#2AA9EE;--r:14px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.01em;}
+a{color:inherit;text-decoration:none;}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px;}
+
+nav{position:sticky;top:0;z-index:50;background:rgba(14,15,19,0.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;max-width:1100px;margin:0 auto;}
+.brand{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk';font-weight:700;font-size:17px;}
+.dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--ig1),var(--ig2));box-shadow:0 0 10px rgba(240,53,107,0.6);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;border:none;}
+.btn-primary{background:linear-gradient(90deg,var(--ig1),var(--ig2));color:#fff;}
+.btn-primary:hover{filter:brightness(1.1);}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn-ghost:hover{border-color:var(--tg);}
+
+/* HERO */
+.hero{padding:70px 0 50px;position:relative;overflow:hidden;}
+.hero::before{content:"";position:absolute;top:-200px;right:-200px;width:500px;height:500px;background:radial-gradient(circle,rgba(240,53,107,0.15),transparent 65%);pointer-events:none;}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono';font-size:11px;color:var(--tg);border:1px solid rgba(42,169,238,0.3);background:rgba(42,169,238,0.07);padding:5px 12px;border-radius:999px;margin-bottom:18px;}
+.hero h1{font-size:44px;font-weight:700;line-height:1.1;}
+.grad{background:linear-gradient(90deg,var(--ig1),var(--ig2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.hero p{margin-top:16px;color:var(--muted);font-size:16px;max-width:460px;}
+.hero-btns{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;}
+
+/* DOWNLOADER CARD */
+.dl-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:28px;box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);}
+.dl-card h3{font-size:16px;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.input-row{display:flex;gap:10px;}
+.url-input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:'Inter';}
+.url-input:focus{border-color:var(--ig1);}
+.url-input::placeholder{color:var(--muted);}
+.progress-wrap{margin-top:16px;display:none;}
+.progress-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:'JetBrains Mono';}
+.progress-track{height:7px;border-radius:99px;background:var(--panel2);overflow:hidden;}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--ig1),var(--ig2));width:0%;transition:width 0.3s;}
+.status-msg{margin-top:12px;font-size:13px;color:var(--muted);min-height:18px;}
+.error-msg{color:#f87171;}
+.success-msg{color:#4ade80;}
+
+/* FEATURES */
+section{padding:64px 0;border-top:1px solid var(--border);}
+.sec-head{margin-bottom:40px;}
+.sec-ey{font-family:'JetBrains Mono';font-size:11px;color:var(--ig2);display:block;margin-bottom:8px;}
+.sec-head h2{font-size:30px;font-weight:700;}
+.sec-head p{color:var(--muted);margin-top:10px;font-size:15px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px;transition:border-color .2s,transform .2s;}
+.card:hover{border-color:rgba(240,53,107,0.4);transform:translateY(-2px);}
+.icon{width:38px;height:38px;border-radius:10px;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:14px;}
+.card h3{font-size:15px;font-weight:600;margin-bottom:7px;}
+.card p{font-size:13px;color:var(--muted);}
+
+/* COMMANDS */
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:13px 16px;background:var(--panel2);font-weight:600;}
+td{padding:13px 16px;border-top:1px solid var(--border);font-size:13px;vertical-align:top;}
+td.cmd{font-family:'JetBrains Mono';color:var(--ig2);white-space:nowrap;font-size:12px;}
+.tag{font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(42,169,238,0.1);color:var(--tg);font-family:'JetBrains Mono';}
+
+footer{border-top:1px solid var(--border);padding:36px 0;}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;}
+.foot-links{display:flex;gap:18px;font-size:13px;color:var(--muted);}
+.foot-links a:hover{color:var(--text);}
+.status-pill{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono';}
+.sdot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 7px #4ade80;}
+
+@media(max-width:768px){
+  .hero-grid{grid-template-columns:1fr;}
+  .grid3{grid-template-columns:1fr;}
+  .hero h1{font-size:30px;}
+  .input-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span> RADHEY</div>
+    <div style="display:flex;gap:10px;">
+      <a class="btn btn-ghost" href="#features">Features</a>
+      <a class="btn btn-primary" href="https://t.me/Youradhey" target="_blank">Contact Owner</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">● LIVE · #RADHEY</span>
+      <h1>Download any<br><span class="grad">Instagram Reel</span><br>in seconds.</h1>
+      <p>Paste a link below to download instantly from the web — or send it to our Telegram bot for download right in your chat.</p>
+      <div class="hero-btns">
+        <a class="btn btn-primary" href="https://t.me/xivasudev" target="_blank">📢 Join Channel</a>
+        <a class="btn btn-ghost" href="#commands">View Commands</a>
+      </div>
+    </div>
+
+    <!-- WEB DOWNLOADER -->
+    <div class="dl-card">
+      <h3>📥 Web Downloader</h3>
+      <div class="input-row">
+        <input class="url-input" id="urlInput" type="url" placeholder="Paste Instagram reel/post link here..."/>
+        <button class="btn btn-primary" onclick="startDownload()" id="dlBtn">Download</button>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label" id="progressLabel">Downloading...</div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-ey">// FEATURES</span>
+      <h2>Everything in one bot</h2>
+      <p>Downloads reels from the web AND Telegram, plus full group management.</p>
+    </div>
+    <div class="grid3">
+      <div class="card"><div class="icon">📥</div><h3>Instant Downloads</h3><p>Paste any Instagram reel, post or video link — downloaded with a live progress bar.</p></div>
+      <div class="card"><div class="icon">🌐</div><h3>Web Downloader</h3><p>No Telegram needed. Paste the link right on this page and download directly to your device.</p></div>
+      <div class="card"><div class="icon">📝</div><h3>Show Caption</h3><p>Every Telegram download ships with a "Show Caption" button so the original text is never lost.</p></div>
+      <div class="card"><div class="icon">🛡️</div><h3>Group Moderation</h3><p>Mute, ban, unban, kick, promote, warn, purge, pin — full MissRose-style admin toolkit.</p></div>
+      <div class="card"><div class="icon">🔒</div><h3>Force Subscribe</h3><p>New users must join the official channel before their first download — one tap and they're in.</p></div>
+      <div class="card"><div class="icon">📢</div><h3>Broadcast Tools</h3><p>Owner can message every user or every group with a single command. Stats included.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="commands">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-ey">// COMMANDS</span>
+      <h2>Command Reference</h2>
+      <p>Group commands work by replying to a member's message or passing their @username.</p>
+    </div>
+    <table>
+      <tr><th>Command</th><th>Access</th><th>Description</th></tr>
+      <tr><td class="cmd">/start</td><td><span class="tag">everyone</span></td><td>Shows your Telegram info + profile picture</td></tr>
+      <tr><td class="cmd">(paste IG link)</td><td><span class="tag">everyone</span></td><td>Auto-downloads with live progress bar</td></tr>
+      <tr><td class="cmd">/mute · /unmute</td><td><span class="tag">group admin</span></td><td>Restrict or restore messaging rights</td></tr>
+      <tr><td class="cmd">/ban · /unban · /kick</td><td><span class="tag">group admin</span></td><td>Remove members from group</td></tr>
+      <tr><td class="cmd">/promote · /demote</td><td><span class="tag">group admin</span></td><td>Grant or revoke admin rights</td></tr>
+      <tr><td class="cmd">/warn · /resetwarn</td><td><span class="tag">group admin</span></td><td>3 strikes = auto ban</td></tr>
+      <tr><td class="cmd">/purge · /pin · /unpin</td><td><span class="tag">group admin</span></td><td>Bulk delete and pin control</td></tr>
+      <tr><td class="cmd">/broadcast · /gbroadcast</td><td><span class="tag">owner</span></td><td>Message all users / all groups</td></tr>
+      <tr><td class="cmd">/stats · /ping · /id · /info</td><td><span class="tag">everyone</span></td><td>Utility commands</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div class="status-pill"><span class="sdot"></span> Service Online</div>
+    <div class="foot-links">
+      <a href="https://t.me/Youradhey" target="_blank">@Youradhey</a>
+      <a href="https://t.me/sunradhey" target="_blank">@sunradhey</a>
+      <a href="https://t.me/xivasudev" target="_blank">Channel</a>
+    </div>
+    <div style="font-family:'JetBrains Mono';font-size:11px;color:var(--muted);">#RADHEY</div>
+  </div>
+</footer>
+
+<script>
+async function startDownload() {
+  const input  = document.getElementById("urlInput");
+  const btn    = document.getElementById("dlBtn");
+  const wrap   = document.getElementById("progressWrap");
+  const fill   = document.getElementById("progressFill");
+  const label  = document.getElementById("progressLabel");
+  const status = document.getElementById("statusMsg");
+
+  const url = input.value.trim();
+  if (!url) { status.innerHTML = '<span class="error-msg">Please paste an Instagram link first.</span>'; return; }
+  if (!url.includes("instagram.com")) { status.innerHTML = '<span class="error-msg">That doesn\'t look like an Instagram link.</span>'; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Downloading...";
+  wrap.style.display = "block";
+  status.textContent = "";
+
+  // Fake progress bar while waiting for server
+  let pct = 0;
+  const timer = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 8, 85);
+    fill.style.width = pct + "%";
+    label.textContent = `Downloading... ${Math.round(pct)}%`;
+  }, 400);
+
+  try {
+    const res = await fetch("/api/download", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({url})
+    });
+
+    clearInterval(timer);
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Server error");
+    }
+
+    fill.style.width = "100%";
+    label.textContent = "Done! Saving file...";
+
+    const blob = await res.blob();
+    const disp = res.headers.get("Content-Disposition") || "";
+    const nameMatch = disp.match(/filename="?([^"]+)"?/);
+    const filename = nameMatch ? nameMatch[1] : "radhey_download.mp4";
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    status.innerHTML = '<span class="success-msg">✅ Downloaded successfully!</span>';
+    label.textContent = "Complete!";
+  } catch(e) {
+    clearInterval(timer);
+    fill.style.width = "0%";
+    wrap.style.display = "none";
+    status.innerHTML = `<span class="error-msg">❌ ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Download";
+  }
+}
+
+document.getElementById("urlInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") startDownload();
+});
+</script>
+</body>
+</html>
