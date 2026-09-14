@@ -58,11 +58,15 @@ async def run_bot():
 
         owner_commands = [
             BotCommand("start", "Start bot & open main dashboard"),
+            BotCommand("broadcast", "📢 Broadcast message"),
+            BotCommand("broadcast_pin", "📌 Broadcast & Pin message"),
+            BotCommand("unpin", "📍 Unpin broadcast message"),
+            BotCommand("unpinall", "🗑️ Unpin all messages"),
+            BotCommand("admins", "🛡️ Manage Admins"),
             BotCommand("addfsub", "➕ Add Force-Sub Channel"),
             BotCommand("delfsub", "➖ Remove Force-Sub Channel"),
             BotCommand("fsubs", "📢 View All Force-Sub Channels"),
             BotCommand("stats", "📊 View bot stats & users"),
-            BotCommand("broadcast", "📢 Broadcast message to users"),
             BotCommand("help", "Help & guide"),
             BotCommand("ping", "Check bot latency & speed")
         ]
