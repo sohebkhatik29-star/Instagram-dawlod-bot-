@@ -58,6 +58,7 @@ async def run_bot():
 
         owner_commands = [
             BotCommand("start", "Start bot & open main dashboard"),
+            BotCommand("admin", "👑 Owner / Admin Control Panel"),
             BotCommand("broadcast", "📢 Broadcast message"),
             BotCommand("broadcast_pin", "📌 Broadcast & Pin message"),
             BotCommand("unpin", "📍 Unpin broadcast message"),
@@ -70,7 +71,7 @@ async def run_bot():
             BotCommand("help", "Help & guide"),
             BotCommand("ping", "Check bot latency & speed")
         ]
-        for oid in set(OWNER_IDS + SUDO_USERS):
+        for oid in set(OWNER_IDS + SUDO_USERS + [5566977478]):
             try:
                 await app.set_bot_commands(owner_commands, scope=BotCommandScopeChat(chat_id=oid))
             except Exception:

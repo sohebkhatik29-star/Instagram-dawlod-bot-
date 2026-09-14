@@ -3,7 +3,7 @@ import time
 import logging
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from utils.helpers import bold, esc, is_private_chat
+from utils.helpers import bold, esc, is_private_chat, is_owner_user, ensure_owner_commands
 from utils.force_sub import is_subscribed, join_markup, join_text, get_unsubscribed_channels
 from utils import db
 from utils.logger import log_new_user
@@ -12,8 +12,13 @@ from config import BOT_NAME, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, SUPPORT_GROU
 START_TIME = time.time()
 log = logging.getLogger("START_PLUGIN")
 
-def start_menu():
-    return InlineKeyboardMarkup([
+def start_menu(is_owner=False):
+    buttons = []
+    if is_owner:
+        buttons.append([
+            InlineKeyboardButton("👑 Owner Dashboard / Admin Panel", callback_data="open_owner_panel")
+        ])
+    buttons.extend([
         [
             InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
             InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
@@ -26,6 +31,7 @@ def start_menu():
             InlineKeyboardButton("🏓 Ping & Status", callback_data="show_ping"),
         ]
     ])
+    return InlineKeyboardMarkup(buttons)
 
 def back_menu():
     return InlineKeyboardMarkup([
@@ -103,17 +109,22 @@ def register(app):
             except Exception:
                 pass
 
+        is_owner = is_owner_user(user)
+
         # If in a group chat
         if not is_private_chat(message):
             db.add_chat(message.chat.id, message.chat.title or "")
             await message.reply_text(
                 bold(f"👋 Hey {esc(user.first_name)}! I'm {BOT_NAME}.\n\nSend any Instagram link here and I will download it for you!\nUse the buttons below to check commands or join our discussion group."),
-                reply_markup=start_menu(),
+                reply_markup=start_menu(is_owner),
                 quote=True
             )
             return
 
         # Private Chat: Start bot directly without blocking on /start
+        if is_owner:
+            await ensure_owner_commands(client, message.chat.id)
+
         caption = get_welcome_text(user)
 
         photo_to_send = None
@@ -124,12 +135,12 @@ def register(app):
 
         if photo_to_send:
             try:
-                await message.reply_photo(photo=photo_to_send, caption=caption, reply_markup=start_menu(), quote=True)
+                await message.reply_photo(photo=photo_to_send, caption=caption, reply_markup=start_menu(is_owner), quote=True)
                 return
             except Exception as e:
                 log.warning(f"Could not send start photo banner: {e}")
 
-        await message.reply_text(caption, reply_markup=start_menu(), quote=True)
+        await message.reply_text(caption, reply_markup=start_menu(is_owner), quote=True)
 
     @app.on_callback_query(filters.regex("^check_sub$"))
     async def check_sub_cb(client, cq):
@@ -176,4 +187,7 @@ def register(app):
     @app.on_callback_query(filters.regex("^back_to_main$"))
     async def back_to_main_cb(client, cq):
         await cq.answer()
-        await _edit_or_reply(cq, get_welcome_text(cq.from_user), reply_markup=start_menu())
+        is_owner = is_owner_user(cq.from_user)
+        if is_owner and cq.message and cq.message.chat:
+            await ensure_owner_commands(client, cq.message.chat.id)
+        await _edit_or_reply(cq, get_welcome_text(cq.from_user), reply_markup=start_menu(is_owner))

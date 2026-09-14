@@ -2,9 +2,57 @@ import asyncio
 from pyrogram import filters
 from pyrogram.types import ChatPermissions, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import RPCError, UserAdminInvalid, ChatAdminRequired
-from utils.helpers import bold, esc, is_private_chat
+from utils.helpers import bold, esc, is_private_chat, is_owner_user, ensure_owner_commands
 from utils import db
 from config import OWNER_IDS, SUDO_USERS, OWNER_USERNAMES
+
+def _is_owner_user(u):
+    return is_owner_user(u)
+
+def get_owner_panel_text(user):
+    u, c = db.stats()
+    dl_count = db.total_downloads()
+    from utils.force_sub import get_all_active_fsubs
+    fsubs = get_all_active_fsubs()
+    admins = db.get_all_admins()
+
+    name = user.first_name if user and user.first_name else "Owner"
+    return (
+        f"👑 <b>Ash Insta Downloader — Owner Dashboard</b>\n\n"
+        f"👋 Welcome back, <b>{esc(name)}</b>!\n"
+        f"Yahan se aap bot ke sabhi features aur channels ko control kar sakte hain:\n\n"
+        f"📊 <b>Bot Live Statistics:</b>\n"
+        f"• 👤 <b>Total Users:</b> <code>{u}</code>\n"
+        f"• 👥 <b>Total Groups:</b> <code>{c}</code>\n"
+        f"• 📥 <b>Total Downloads:</b> <code>{dl_count}</code>\n"
+        f"• 📢 <b>Force-Sub Channels:</b> <code>{len(fsubs)}</code> active\n"
+        f"• 🛡️ <b>Custom Admins:</b> <code>{len(admins)}</code>\n\n"
+        f"⚡ <i>Niche diye gaye buttons se koi bhi action select karein:</i>"
+    )
+
+def get_owner_panel_markup():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📢 Broadcast", callback_data="owner_action_broadcast"),
+            InlineKeyboardButton("📌 Broadcast & Pin", callback_data="owner_action_bpin"),
+        ],
+        [
+            InlineKeyboardButton("➕ Add Channel", callback_data="owner_action_addfsub"),
+            InlineKeyboardButton("🗑️ Delete Channel", callback_data="owner_action_delfsub"),
+        ],
+        [
+            InlineKeyboardButton("📢 All F-Sub Channels", callback_data="owner_action_listfsub"),
+            InlineKeyboardButton("🛡️ Bot Admins", callback_data="owner_action_admins"),
+        ],
+        [
+            InlineKeyboardButton("📊 Detailed Stats", callback_data="owner_action_stats"),
+            InlineKeyboardButton("🏓 Ping Latency", callback_data="show_ping"),
+        ],
+        [
+            InlineKeyboardButton("🔙 Main Menu", callback_data="back_to_main"),
+            InlineKeyboardButton("❌ Close Panel", callback_data="close_admin_menu"),
+        ]
+    ])
 
 async def is_admin(client, chat_id, user_id):
     if user_id in (OWNER_IDS + SUDO_USERS): return True
@@ -203,15 +251,6 @@ def register(app):
         await message.reply_text(bold(f"Warnings reset for {esc(target.first_name)}."), quote=True)
 
     WAITING_FSUB_FORWARD = set()
-
-    def _is_owner_user(u):
-        if not u: return False
-        if u.id in (OWNER_IDS + SUDO_USERS): return True
-        if u.username and any(u.username.lower() == o.lower() for o in OWNER_USERNAMES if o): return True
-        try:
-            return db.is_db_admin(u.id)
-        except Exception:
-            return False
 
     async def check_and_add_channel(client, message, target, added_by):
         """Checks if bot is admin in channel; if admin, adds to Force-Sub DB; else alerts."""
@@ -506,4 +545,200 @@ def register(app):
         except Exception:
             await cq.answer()
             pass
+
+    @app.on_message(filters.command(["admin", "owner", "panel", "control"]))
+    async def owner_panel_cmd(client, message):
+        if not _is_owner_user(message.from_user):
+            await message.reply_text("⛔ <b>Access Denied:</b> This command is only for bot owners.", quote=True)
+            return
+
+        await ensure_owner_commands(client, message.chat.id)
+        panel_text = get_owner_panel_text(message.from_user)
+        panel_kb = get_owner_panel_markup()
+
+        await message.reply_text(panel_text, reply_markup=panel_kb, quote=True)
+
+    @app.on_callback_query(filters.regex(r"^(open_owner_panel|back_to_owner_panel)$"))
+    async def open_owner_panel_cb(client, cq):
+        if not _is_owner_user(cq.from_user):
+            await cq.answer("⛔ Only owner can access this panel.", show_alert=True)
+            return
+
+        await cq.answer()
+        if cq.message and cq.message.chat:
+            await ensure_owner_commands(client, cq.message.chat.id)
+
+        panel_text = get_owner_panel_text(cq.from_user)
+        panel_kb = get_owner_panel_markup()
+
+        try:
+            if cq.message.photo:
+                await cq.message.edit_caption(caption=panel_text, reply_markup=panel_kb)
+            else:
+                await cq.message.edit_text(text=panel_text, reply_markup=panel_kb)
+        except Exception:
+            await cq.message.reply_text(panel_text, reply_markup=panel_kb)
+
+    @app.on_callback_query(filters.regex(r"^owner_action_broadcast$"))
+    async def owner_action_broadcast_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        text = (
+            "📢 <b>Broadcast Message Guide:</b>\n\n"
+            "Bot ke sabhi users ko message ya photo bhejne ke 2 tarike hain:\n\n"
+            "1️⃣ <b>Direct Command:</b>\n"
+            "<code>/broadcast Aapka Sandesh</code>\n\n"
+            "2️⃣ <b>Reply to Message:</b>\n"
+            "Kisi bhi text, photo, ya video message par reply karein aur likhein: <code>/broadcast</code>\n\n"
+            "• Running broadcast ko rokne ke liye: <code>/cancelbroadcast</code>"
+        )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]
+        ])
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_bpin$"))
+    async def owner_action_bpin_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        text = (
+            "📌 <b>Broadcast & Pin Guide:</b>\n\n"
+            "Message ko broadcast karne ke sath har user ke chat me <b>Pin</b> karne ke liye:\n\n"
+            "1️⃣ <b>Direct Command:</b>\n"
+            "<code>/broadcast_pin Aapka Sandesh</code>\n\n"
+            "2️⃣ <b>Reply to Message:</b>\n"
+            "Message par reply karke likhein: <code>/broadcast_pin</code>\n\n"
+            "• Pin hatane ke liye: <code>/unpin</code> ya <code>/unpinall</code>"
+        )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]
+        ])
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_addfsub$"))
+    async def owner_action_addfsub_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        WAITING_FSUB_FORWARD.add(cq.from_user.id)
+        text = (
+            "➕ <b>Add Force-Sub Channel:</b>\n\n"
+            "1️⃣ Pehle bot ko apne Channel me <b>Administrator</b> banayein.\n"
+            "2️⃣ Uske baad us channel se <b>koi bhi message yahan Forward karein</b>!\n\n"
+            "Ya fir direct command se add karein:\n"
+            "<code>/addfsub &lt;channel_id ya @username&gt;</code>"
+        )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]
+        ])
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_delfsub$"))
+    async def owner_action_delfsub_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        from utils.force_sub import get_all_active_fsubs
+        active = get_all_active_fsubs()
+        if not active:
+            text = "ℹ️ <b>Abhi koi bhi active Force-Sub channel nahi hai.</b>"
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]])
+        else:
+            text = "🗑️ <b>Delete Channel — Select to Remove:</b>\n\nJis channel ko hatana ho, uska button dabayein:"
+            buttons = []
+            for idx, ch in enumerate(active, 1):
+                ch_id = ch.get("raw") or ch.get("id")
+                title = ch.get("title") or str(ch_id)
+                buttons.append([InlineKeyboardButton(f"🗑️ Delete Channel {idx} ({title[:18]})", callback_data=f"delfsub_{ch_id}")])
+            buttons.append([InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")])
+            kb = InlineKeyboardMarkup(buttons)
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_listfsub$"))
+    async def owner_action_listfsub_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        from utils.force_sub import get_all_active_fsubs
+        active = get_all_active_fsubs()
+        if not active:
+            text = "ℹ️ <b>Abhi koi bhi Force-Sub channel set nahi hai.</b>\n\nNaya channel add karne ke liye: <code>/addfsub</code>"
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]])
+        else:
+            text = "📢 <b>Active Force-Sub Channels List:</b>\n\n"
+            for i, ch in enumerate(active, 1):
+                text += f"{i}️⃣ <b>{esc(ch['title'])}</b>\n"
+                text += f"   • ID: <code>{ch.get('raw') or ch.get('id')}</code>\n"
+                text += f"   • Link: {ch.get('url') or 'N/A'}\n\n"
+            buttons = []
+            for idx, ch in enumerate(active, 1):
+                ch_id = ch.get("raw") or ch.get("id")
+                buttons.append([InlineKeyboardButton(f"🗑️ Delete Channel {idx}", callback_data=f"delfsub_{ch_id}")])
+            buttons.append([InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")])
+            kb = InlineKeyboardMarkup(buttons)
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_admins$"))
+    async def owner_action_admins_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        admins = db.get_all_admins()
+        text = "🛡️ <b>Bot Admins Management:</b>\n\n"
+        if not admins:
+            text += "• Koi custom admin add nahi kiya gaya hai.\n\n"
+        else:
+            for a_id, a_name, added_by in admins:
+                text += f"• <code>{a_id}</code> | {esc(a_name)} (by {added_by})\n"
+            text += "\n"
+        text += (
+            "➕ <b>Add Admin:</b> <code>/addadmin &lt;user_id ya reply&gt;</code>\n"
+            "➖ <b>Remove Admin:</b> <code>/deladmin &lt;user_id ya reply&gt;</code>\n"
+            "📋 <b>View Admins:</b> <code>/admins</code>"
+        )
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]])
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
+
+    @app.on_callback_query(filters.regex(r"^owner_action_stats$"))
+    async def owner_action_stats_cb(client, cq):
+        if not _is_owner_user(cq.from_user): return await cq.answer("⛔ Access denied", show_alert=True)
+        await cq.answer()
+        u, c = db.stats()
+        dl_count = db.total_downloads()
+        from utils.force_sub import get_all_active_fsubs
+        fsubs = get_all_active_fsubs()
+        from plugins.start import START_TIME
+        import time
+        uptime_sec = int(time.time() - START_TIME)
+        hours, rem = divmod(uptime_sec, 3600)
+        minutes, seconds = divmod(rem, 60)
+        uptime_str = f"{hours}h {minutes}m {seconds}s"
+        text = (
+            f"📊 <b>Detailed Bot Statistics:</b>\n\n"
+            f"• 👤 <b>Total Users:</b> <code>{u}</code>\n"
+            f"• 👥 <b>Total Groups:</b> <code>{c}</code>\n"
+            f"• 📥 <b>Total Downloads Served:</b> <code>{dl_count}</code>\n"
+            f"• 📢 <b>Force-Sub Channels:</b> <code>{len(fsubs)}</code> active\n"
+            f"• ⏱️ <b>Server Uptime:</b> <code>{uptime_str}</code>\n"
+            f"• ⚡ <b>Engine:</b> 24/7 Running Active"
+        )
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Owner Panel", callback_data="back_to_owner_panel")]])
+        try:
+            if cq.message.photo: await cq.message.edit_caption(caption=text, reply_markup=kb)
+            else: await cq.message.edit_text(text=text, reply_markup=kb)
+        except Exception: pass
 

