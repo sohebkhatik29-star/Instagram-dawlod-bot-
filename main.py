@@ -45,23 +45,41 @@ async def run_bot():
     await app.start()
     me = await app.get_me()
 
-    # Register native Telegram [Menu] commands button
+    # Register native Telegram [Menu] commands button (Public vs Owner scopes)
     try:
-        from pyrogram.types import BotCommand
-        await app.set_bot_commands([
+        from pyrogram.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat
+        from config import OWNER_IDS, SUDO_USERS
+
+        public_commands = [
             BotCommand("start", "Start bot & open main dashboard"),
             BotCommand("help", "Help & list of commands"),
-            BotCommand("about", "About bot & owner details"),
+            BotCommand("about", "About bot & details"),
             BotCommand("dl", "Download Instagram Reel/Post/Video"),
-            BotCommand("addfsub", "➕ Add Force-Sub Channel (Owner)"),
-            BotCommand("delfsub", "➖ Remove Force-Sub Channel (Owner)"),
-            BotCommand("fsubs", "📢 View All Force-Sub Channels"),
             BotCommand("ping", "Check bot latency & speed"),
             BotCommand("id", "Get Telegram chat and user ID"),
-            BotCommand("info", "View user details"),
-            BotCommand("stats", "View bot stats (Owner only)")
-        ])
-        log.info("✅ Telegram native Menu commands registered!")
+            BotCommand("info", "View user details")
+        ]
+        await app.set_bot_commands(public_commands, scope=BotCommandScopeDefault())
+        log.info("✅ Public Telegram Menu commands registered for standard users!")
+
+        owner_commands = [
+            BotCommand("start", "Start bot & open main dashboard"),
+            BotCommand("addfsub", "➕ Add Force-Sub Channel"),
+            BotCommand("delfsub", "➖ Remove Force-Sub Channel"),
+            BotCommand("fsubs", "📢 View All Force-Sub Channels"),
+            BotCommand("stats", "📊 View bot stats"),
+            BotCommand("broadcast", "📢 Broadcast message to users"),
+            BotCommand("help", "Help & list of commands"),
+            BotCommand("dl", "Download Instagram Reel/Post/Video"),
+            BotCommand("ping", "Check bot latency & speed"),
+            BotCommand("id", "Get Telegram chat and user ID")
+        ]
+        for oid in set(OWNER_IDS + SUDO_USERS):
+            try:
+                await app.set_bot_commands(owner_commands, scope=BotCommandScopeChat(chat_id=oid))
+            except Exception:
+                pass
+        log.info("✅ Owner Telegram Menu commands registered for authorized owners!")
     except Exception as e:
         log.warning(f"Could not register bot commands menu: {e}")
 

@@ -16,9 +16,8 @@ if not BOT_TOKEN:
     print("⚠️ WARNING: BOT_TOKEN is not set yet. Set BOT_TOKEN in .env or environment variables.")
 
 # Owner & Sudo Configuration
-OWNER_USERNAMES   = ["movies_1780", "killchorgamming90"]
-_default_owners   = [8378171861, 8192070400]
-OWNER_IDS         = list(set(_default_owners + [int(x) for x in os.environ.get("OWNER_IDS", "").split(",") if x.strip().isdigit()]))
+OWNER_USERNAMES   = [x.strip().replace("@", "") for x in os.environ.get("OWNER_USERNAMES", "movies_1780").split(",") if x.strip()]
+OWNER_IDS         = [int(x) for x in os.environ.get("OWNER_IDS", "").split(",") if x.strip().isdigit()]
 SUDO_USERS        = [int(x) for x in os.environ.get("SUDO_USERS", "").split(",") if x.strip().isdigit()]
 
 # Official Channels & Branding

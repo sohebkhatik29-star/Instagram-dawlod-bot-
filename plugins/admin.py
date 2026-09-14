@@ -206,8 +206,8 @@ def register(app):
 
     def _is_owner_user(u):
         if not u: return False
-        if u.id in (OWNER_IDS + SUDO_USERS + [8378171861, 8192070400]): return True
-        if u.username and u.username.lower() in [o.lower() for o in OWNER_USERNAMES]: return True
+        if u.id in (OWNER_IDS + SUDO_USERS): return True
+        if u.username and any(u.username.lower() == o.lower() for o in OWNER_USERNAMES if o): return True
         return False
 
     async def check_and_add_channel(client, message, target, added_by):
@@ -309,7 +309,13 @@ def register(app):
             quote=True
         )
 
-    @app.on_message(filters.private & filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in WAITING_FSUB_FORWARD)), group=1)
+    @app.on_message(filters.command(["cancel", "cancel_fsub"]))
+    async def cancel_fsub_cmd(client, message):
+        if message.from_user and message.from_user.id in WAITING_FSUB_FORWARD:
+            WAITING_FSUB_FORWARD.discard(message.from_user.id)
+            await message.reply_text("❌ Force-Sub add process cancel ho gaya.", quote=True)
+
+    @app.on_message(filters.private & ~filters.regex(r"^/") & filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in WAITING_FSUB_FORWARD)), group=1)
     async def fsub_forward_listener(client, message):
         """Listens for the forwarded channel message or channel username from the owner"""
         if not message.from_user:
@@ -321,6 +327,9 @@ def register(app):
         if message.text and message.text.strip().lower() in ("/cancel", "cancel"):
             WAITING_FSUB_FORWARD.discard(user_id)
             await message.reply_text("❌ Force-Sub add process cancel ho gaya.", quote=True)
+            return
+
+        if message.text and message.text.startswith("/"):
             return
 
         target = None

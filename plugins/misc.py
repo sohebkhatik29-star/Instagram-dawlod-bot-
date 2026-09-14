@@ -88,8 +88,8 @@ def register(app):
     async def stats_cmd(client, message):
         from config import OWNER_USERNAMES, FORCE_SUB_CHANNEL
         is_owner = (
-            message.from_user.id in (OWNER_IDS + SUDO_USERS + [8378171861, 8192070400]) or
-            (message.from_user.username and message.from_user.username.lower() in [o.lower() for o in OWNER_USERNAMES])
+            message.from_user.id in (OWNER_IDS + SUDO_USERS) or
+            (message.from_user.username and any(message.from_user.username.lower() == o.lower() for o in OWNER_USERNAMES if o))
         )
         if not is_owner:
             await message.reply_text(bold("⛔ This command is restricted to bot owners."), quote=True)
