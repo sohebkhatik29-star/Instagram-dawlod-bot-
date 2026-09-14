@@ -1,10 +1,16 @@
 import asyncio
+import logging
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import RPCError
 from utils.helpers import bold
 from utils import db
 from config import OWNER_IDS, SUDO_USERS
+
+log = logging.getLogger("MOVIES_1780_BOT")
+
+# Stores admin user_id -> do_pin (boolean)
+WAITING_BROADCAST = {}
 
 def _is_admin(user_id):
     if not user_id:
@@ -36,11 +42,15 @@ async def _execute_broadcast(client, message, target_msg, do_pin=False):
             sent += 1
             if do_pin:
                 try:
-                    await client.pin_chat_message(chat_id=uid, message_id=copied.id, disable_notification=False)
+                    # In Telegram private chats, both_sides=True is required for bots to pin
+                    try:
+                        await client.pin_chat_message(chat_id=uid, message_id=copied.id, disable_notification=False, both_sides=True)
+                    except TypeError:
+                        await client.pin_chat_message(chat_id=uid, message_id=copied.id, disable_notification=False)
                     pinned += 1
                     db.record_pinned_broadcast(user_id=uid, msg_id=copied.id, owner_msg_id=target_msg.id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.warning(f"Could not pin broadcast for user {uid}: {e}")
         except RPCError:
             failed += 1
         except Exception:
@@ -54,6 +64,7 @@ async def _execute_broadcast(client, message, target_msg, do_pin=False):
                         f"⏳ <b>{mode_title} in progress...</b>\n\n"
                         f"📊 <b>Progress:</b> <code>{idx}/{total}</code> ({(idx/total)*100:.0f}%)\n"
                         f"✅ <b>Sent:</b> <code>{sent}</code>\n"
+                        f"📌 <b>Pinned:</b> <code>{pinned}</code>\n"
                         f"❌ <b>Failed:</b> <code>{failed}</code>"
                     )
                 )
@@ -81,6 +92,13 @@ async def _execute_broadcast(client, message, target_msg, do_pin=False):
 
 def register(app):
 
+    # Cancel active waiting state
+    @app.on_message(filters.command(["cancel", "cancel_broadcast"]))
+    async def cancel_cmd(client, message):
+        if message.from_user and message.from_user.id in WAITING_BROADCAST:
+            WAITING_BROADCAST.pop(message.from_user.id, None)
+            await message.reply_text(bold("❌ Broadcast operation cancelled."), quote=True)
+
     # 1. /broadcast (or /bc)
     @app.on_message(filters.command(["broadcast", "bc"]))
     async def broadcast_cmd(client, message):
@@ -90,11 +108,13 @@ def register(app):
 
         # If replied to any message
         if message.reply_to_message:
+            WAITING_BROADCAST.pop(message.from_user.id, None)
             await _execute_broadcast(client, message, message.reply_to_message, do_pin=False)
             return
 
         # If text argument provided directly after command
         if len(message.command) > 1:
+            WAITING_BROADCAST.pop(message.from_user.id, None)
             text_to_send = message.text.split(None, 1)[1]
             temp_msg = await message.reply_text(text_to_send)
             await _execute_broadcast(client, message, temp_msg, do_pin=False)
@@ -104,14 +124,14 @@ def register(app):
                 pass
             return
 
+        # Prompt admin to send the message next
+        WAITING_BROADCAST[message.from_user.id] = False
         await message.reply_text(
             bold(
-                "📢 <b>Broadcast Command Guide:</b>\n\n"
-                "1. <b>Reply to any message</b> (Text, Photo, Video, Sticker, Document) with:\n"
-                "   <code>/broadcast</code>\n\n"
-                "2. <b>Or type your text directly:</b>\n"
-                "   <code>/broadcast Hello everyone! New updates available.</code>\n\n"
-                "💡 <i>Tip: Use <code>/broadcast_pin</code> to automatically pin the message!</i>"
+                "📢 <b>Broadcast Message:</b>\n\n"
+                "Ab jo message aapko sabhi users ko bhejna hai wo yahan send karein:\n"
+                "<i>(Text, Photo, Video, Sticker, Audio, Document sab bhej sakte hain)</i>\n\n"
+                "❌ <i>Cancel karne ke liye <code>/cancel</code> likhein.</i>"
             ),
             quote=True
         )
@@ -125,11 +145,13 @@ def register(app):
 
         # If replied to any message
         if message.reply_to_message:
+            WAITING_BROADCAST.pop(message.from_user.id, None)
             await _execute_broadcast(client, message, message.reply_to_message, do_pin=True)
             return
 
         # If text argument provided directly after command
         if len(message.command) > 1:
+            WAITING_BROADCAST.pop(message.from_user.id, None)
             text_to_send = message.text.split(None, 1)[1]
             temp_msg = await message.reply_text(text_to_send)
             await _execute_broadcast(client, message, temp_msg, do_pin=True)
@@ -139,64 +161,67 @@ def register(app):
                 pass
             return
 
+        # Prompt admin to send the message next
+        WAITING_BROADCAST[message.from_user.id] = True
         await message.reply_text(
             bold(
-                "📌 <b>Broadcast & Pin Command Guide:</b>\n\n"
-                "1. <b>Reply to any message</b> with:\n"
-                "   <code>/broadcast_pin</code>\n\n"
-                "2. <b>Or type your text directly:</b>\n"
-                "   <code>/broadcast_pin Important announcement for all members!</code>\n\n"
-                "<i>This will send the message to all users and PIN it in their private chat.</i>"
+                "📌 <b>Broadcast & PIN Message:</b>\n\n"
+                "Ab jo message aapko sabhi users ko bhejna aur <b>PIN</b> karna hai wo yahan send karein:\n"
+                "<i>(Text, Photo, Video, Sticker, Audio, Document sab bhej sakte hain)</i>\n\n"
+                "❌ <i>Cancel karne ke liye <code>/cancel</code> likhein.</i>"
             ),
             quote=True
         )
 
+    # Catch next message from waiting admin (safe filter: checks memory dictionary instantly)
+    @app.on_message(
+        filters.private
+        & ~filters.regex(r"^/")
+        & filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in WAITING_BROADCAST)),
+        group=-1
+    )
+    async def broadcast_capture_listener(client, message):
+        uid = message.from_user.id
+        do_pin = WAITING_BROADCAST.pop(uid, False)
+        await _execute_broadcast(client, message, message, do_pin=do_pin)
+
     # 3. /unpin
-    @app.on_message(filters.private & filters.command(["unpin", "unpin_msg"]))
+    @app.on_message(filters.command(["unpin", "unpin_msg"]))
     async def unpin_cmd(client, message):
         if not _is_admin(message.from_user.id if message.from_user else 0):
             await message.reply_text(bold("⛔ Access Denied: Owner/Admin only."), quote=True)
             return
 
-        if message.reply_to_message:
-            reply_id = message.reply_to_message.id
-            records = db.get_pinned_broadcasts(owner_msg_id=reply_id)
-            if records:
-                status = await message.reply_text(bold(f"⏳ Unpinning message from {len(records)} users..."), quote=True)
-                unpinned = 0
-                for uid, mid in records:
-                    try:
-                        await client.unpin_chat_message(chat_id=uid, message_id=mid)
-                        unpinned += 1
-                    except Exception:
-                        pass
-                    await asyncio.sleep(0.03)
-                db.delete_pinned_broadcasts(owner_msg_id=reply_id)
-                await status.edit_text(bold(f"✅ <b>Successfully unpinned message from {unpinned} users!</b>"))
-                return
-
-        all_pinned = db.get_pinned_broadcasts()
-        if all_pinned:
-            status = await message.reply_text(bold(f"⏳ Unpinning last broadcast from {len(all_pinned)} users..."), quote=True)
+        target_owner_msg_id = message.reply_to_message.id if message.reply_to_message else None
+        records = db.get_pinned_broadcasts(owner_msg_id=target_owner_msg_id)
+        if records:
+            status = await message.reply_text(bold(f"⏳ Unpinning message from {len(records)} users..."), quote=True)
             unpinned = 0
-            for uid, mid in all_pinned:
+            for uid, mid in records:
                 try:
                     await client.unpin_chat_message(chat_id=uid, message_id=mid)
                     unpinned += 1
                 except Exception:
                     pass
                 await asyncio.sleep(0.03)
-            db.delete_pinned_broadcasts()
+            db.delete_pinned_broadcasts(owner_msg_id=target_owner_msg_id)
             await status.edit_text(bold(f"✅ <b>Successfully unpinned message from {unpinned} users!</b>"))
-        else:
-            await message.reply_text(
-                bold(
-                    "ℹ️ <b>How to Unpin:</b>\n\n"
-                    "• Reply to the broadcasted message with <code>/unpin</code> to unpin it from all users.\n"
-                    "• Or use <code>/unpinall</code> to unpin ALL pinned messages from all users."
-                ),
-                quote=True
-            )
+            return
+
+        users = db.all_users()
+        status = await message.reply_text(bold(f"⏳ Unpinning message for {len(users)} users..."), quote=True)
+        unpinned = 0
+        for uid in users:
+            try:
+                if target_owner_msg_id:
+                    await client.unpin_chat_message(chat_id=uid, message_id=target_owner_msg_id)
+                else:
+                    await client.unpin_chat_message(chat_id=uid)
+                unpinned += 1
+            except Exception:
+                pass
+            await asyncio.sleep(0.03)
+        await status.edit_text(bold(f"✅ <b>Unpinned message from {unpinned} users!</b>"))
 
     # 4. /unpinall
     @app.on_message(filters.command(["unpinall", "unpin_all"]))
