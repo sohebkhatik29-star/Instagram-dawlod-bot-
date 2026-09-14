@@ -370,7 +370,7 @@ def register(app):
             ch_id = ch.get("raw") or ch.get("id")
             title = ch.get("title") or str(ch_id)
             buttons.append([
-                InlineKeyboardButton(f"🗑️ Delete {idx} Channel ({title[:18]})", callback_data=f"delfsub_{ch_id}")
+                InlineKeyboardButton(f"🗑️ Delete Channel {idx} ({title[:18]})", callback_data=f"delfsub_{ch_id}")
             ])
         buttons.append([
             InlineKeyboardButton("❌ Close Menu", callback_data="close_admin_menu")

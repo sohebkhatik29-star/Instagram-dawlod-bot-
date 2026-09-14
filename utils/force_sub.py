@@ -104,16 +104,13 @@ def join_markup(unjoined_channels=None):
         unjoined_channels = get_all_active_fsubs()
 
     buttons = []
-    # Add a join button for each required channel numbered "1 Channel", "2 Channel", etc.
+    # Add a join button for each required channel numbered "Join Channel 1", "Join Channel 2", etc.
     for idx, ch in enumerate(unjoined_channels, 1):
-        btn_label = f"📢 {idx} Channel"
+        btn_label = f"📢 Join Channel {idx}"
         buttons.append([InlineKeyboardButton(btn_label, url=ch["url"])])
 
     # Check button
     buttons.append([InlineKeyboardButton("✅ I've Joined — Unlock Bot", callback_data="check_sub")])
-
-    # Discussion Group
-    buttons.append([InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL)])
 
     return InlineKeyboardMarkup(buttons)
 
@@ -123,13 +120,13 @@ def join_text(unjoined_channels=None):
 
     ch_list_str = ""
     for idx, ch in enumerate(unjoined_channels, 1):
-        ch_list_str += f"👉 <b>{idx} Channel</b>\n"
+        ch_list_str += f"👉 <b>Join Channel {idx}</b>\n"
 
-    return bold(
+    return (
         "🔒 <b>Channel Join Required!</b>\n\n"
         "Aapne abhi tak hamare required channel(s) join nahi kiye hain.\n\n"
-        "Bot use karne ke liye pehle niche diye gaye channel(s) ko join karein:\n\n"
+        "Video / Reel download karne ke liye pehle niche diye gaye channel(s) ko join karein:\n\n"
         f"{ch_list_str}\n"
-        "1. Upar diye gaye <b>Channel</b> button par click karke <b>Join</b> karein.\n"
-        "2. Uske baad <b>'✅ I\\'ve Joined — Unlock Bot'</b> dabayein aur turant bot unlock karein!"
+        "1. Upar diye gaye <b>Join Channel</b> button par click karke <b>Join</b> karein.\n"
+        "2. Uske baad <b>'✅ I've Joined — Unlock Bot'</b> dabayein aur turant download start karein!"
     )

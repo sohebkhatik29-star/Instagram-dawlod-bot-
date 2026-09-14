@@ -113,12 +113,7 @@ def register(app):
             )
             return
 
-        # Private Chat: Check Force-Subscribe to all required channels
-        unjoined = await get_unsubscribed_channels(client, user.id)
-        if unjoined:
-            await message.reply_text(join_text(unjoined), reply_markup=join_markup(unjoined), quote=True)
-            return
-
+        # Private Chat: Start bot directly without blocking on /start
         caption = get_welcome_text(user)
 
         photo_to_send = None
@@ -140,8 +135,17 @@ def register(app):
     async def check_sub_cb(client, cq):
         unjoined = await get_unsubscribed_channels(client, cq.from_user.id)
         if not unjoined:
-            await cq.answer("✅ Verified! Welcome to the bot.", show_alert=True)
-            await _edit_or_reply(cq, get_welcome_text(cq.from_user), reply_markup=start_menu())
+            await cq.answer("✅ Channel Joined Successfully!", show_alert=True)
+            try:
+                await cq.message.edit_text(
+                    "✅ <b>Channels Verified Successfully!</b>\n\n"
+                    "Ab aap koi bhi Instagram video / reel ka link bhej sakte hain, bot turant download kar dega! 🚀",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Main Menu", callback_data="back_to_main")
+                    ]])
+                )
+            except Exception:
+                await _edit_or_reply(cq, get_welcome_text(cq.from_user), reply_markup=start_menu())
         else:
             await cq.answer("❌ You haven't joined all required channels yet! Please join first.", show_alert=True)
             await _edit_or_reply(cq, join_text(unjoined), reply_markup=join_markup(unjoined))
