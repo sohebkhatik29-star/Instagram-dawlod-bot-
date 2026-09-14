@@ -51,10 +51,9 @@ def get_welcome_text(user):
         user_mention = "Friend"
 
     return (
-        f"👋 Hello {user_mention}, welcome to <b>Ash Insta Downloader Bot</b>! ⚡\n\n"
-        f"I'm an advanced Instagram Downloader Bot.\n"
-        f"Send any Instagram Reel, Video, or Post link here and I will download it for you instantly in high quality!\n\n"
-        f"ℹ️ <b>More info to click Help button below!</b>"
+        f"👋 <b>Hey {user_mention}!</b>\n\n"
+        f"⚡ <b>Ash Insta Downloader</b>\n"
+        f"Send any Instagram link (Reel, Video, Post) to download instantly in HD quality!"
     )
 
 def get_about_text():
@@ -64,15 +63,12 @@ def get_about_text():
     uptime_str = f"{hours}h {minutes}m {seconds}s"
 
     return (
-        f"ℹ️ <b>About Ash Insta Downloader Bot</b>\n\n"
-        f"• <b>Bot Name:</b> Ash Insta Downloader Bot\n"
-        f"• <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-        f"• <b>Discussion Group:</b> @ash_movie_j\n"
-        f"• <b>Engine:</b> Python 3 + Pyrogram 2.0 + High-Speed yt-dlp\n"
-        f"• <b>Quality:</b> Original Full HD (1080p)\n"
-        f"• <b>Uptime:</b> {uptime_str}\n"
-        f"• <b>Status:</b> 24/7 Always Online\n\n"
-        f"💡 Need help or join community? Visit our Discussion Group: https://t.me/ash_movie_j"
+        f"ℹ️ <b>About Bot:</b>\n\n"
+        f"🤖 <b>Name:</b> Ash Insta Downloader\n"
+        f"⚡ <b>Speed:</b> Super Fast\n"
+        f"🎬 <b>Quality:</b> 1080p Full HD\n"
+        f"⏱️ <b>Uptime:</b> {uptime_str}\n"
+        f"🟢 <b>Status:</b> 24/7 Active"
     )
 
 async def _edit_or_reply(cq, text, reply_markup=None):
@@ -166,7 +162,11 @@ def register(app):
         start = time.time()
         await cq.answer("Checking ping...")
         ms = (time.time() - start) * 1000
-        text = bold(f"🏓 <b>Pong Latency:</b> <code>{ms:.2f} ms</code>\n🚀 <b>Server Status:</b> Running at 100% speed\n📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n💬 <b>Discussion Group:</b> @ash_movie_j")
+        text = (
+            f"🏓 <b>Pong:</b> <code>{ms:.2f} ms</code>\n\n"
+            f"⚡ <b>Speed:</b> 100% Fast\n"
+            f"🟢 <b>Status:</b> Online"
+        )
         await _edit_or_reply(cq, text, reply_markup=back_menu())
 
     @app.on_callback_query(filters.regex("^back_to_main$"))

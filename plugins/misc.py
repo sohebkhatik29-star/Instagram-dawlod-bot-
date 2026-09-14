@@ -6,13 +6,10 @@ from utils import db
 from config import OWNER_IDS, SUDO_USERS, BOT_NAME, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL
 
 HELP_TEXT = (
-    "📖 <b>How to Use Ash Insta Downloader Bot:</b>\n\n"
-    "1️⃣ <b>Send Link:</b> Please send any Instagram video, reel, post, or IGTV link in this chat.\n"
-    "2️⃣ <b>Choose Format:</b> Bot will give you 3 instant buttons:\n"
-    "   • 🎬 <b>Video + Audio</b> — Full HD video with crystal-clear sound\n"
-    "   • 📹 <b>MP4 Video Only</b> — High quality video without sound (Muted)\n"
-    "   • 🎵 <b>MP3 Audio Only</b> — Extract BGM / Audio track as MP3\n"
-    "3️⃣ <b>Fast Delivery:</b> Click your preferred button, wait a few seconds and your media will be sent instantly!"
+    "📖 <b>How to Download:</b>\n\n"
+    "1️⃣ <b>Send Link</b> — Paste any Instagram Reel or Post link.\n"
+    "2️⃣ <b>Select Format</b> — Choose Video, MP4, or MP3 Audio.\n"
+    "3️⃣ <b>Done</b> — Bot delivers media in 2 seconds!"
 )
 
 def register(app):
