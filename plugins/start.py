@@ -11,11 +11,15 @@ START_TIME = time.time()
 def start_menu():
     return InlineKeyboardMarkup([
         [
+            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
             InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
-            InlineKeyboardButton("📖 Help & Commands", callback_data="show_help"),
         ],
         [
+            InlineKeyboardButton("📖 Help & Commands", callback_data="show_help"),
             InlineKeyboardButton("ℹ️ About Bot", callback_data="show_about"),
+        ],
+        [
+            InlineKeyboardButton("👑 Owner Support", url=OWNER_LINK),
             InlineKeyboardButton("🏓 Ping & Status", callback_data="show_ping"),
         ]
     ])
@@ -24,6 +28,9 @@ def back_menu():
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"),
+            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
+        ],
+        [
             InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
         ]
     ])
@@ -46,6 +53,7 @@ def get_welcome_text(user):
         f"Send any Instagram Reel, Video, or Post link here and I will download it for you instantly in high quality!\n\n"
         f"ℹ️ <b>More info to click Help button below!</b>\n\n"
         f"───────────────\n"
+        f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
         f"💬 <b>Discussion Group:</b> @ash_movie_j\n"
         f"👑 <b>Owner:</b> @movies_1780"
     )

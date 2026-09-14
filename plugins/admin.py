@@ -4,7 +4,7 @@ from pyrogram.types import ChatPermissions
 from pyrogram.errors import RPCError, UserAdminInvalid, ChatAdminRequired
 from utils.helpers import bold, esc, is_private_chat
 from utils import db
-from config import OWNER_IDS, SUDO_USERS
+from config import OWNER_IDS, SUDO_USERS, OWNER_USERNAMES
 
 async def is_admin(client, chat_id, user_id):
     if user_id in (OWNER_IDS + SUDO_USERS): return True
@@ -208,14 +208,13 @@ def register(app):
         if u.username and u.username.lower() in [o.lower() for o in OWNER_USERNAMES]: return True
         return False
 
-    @app.on_message(filters.command(["addfsub", "addchannel", "forcesub"]))
+    @app.on_message(filters.command(["addfsub", "addchannel"]))
     async def add_fsub_cmd(client, message):
         """Add a channel to Force-Sub dynamically from bot"""
         if not _is_owner_user(message.from_user):
             await message.reply_text(bold("⛔ Owner only command."), quote=True)
             return
 
-        # Usage: /addfsub @channelusername or /addfsub -100123456789 https://t.me/+joinlink ChannelTitle
         parts = message.text.split(maxsplit=3)
         if len(parts) < 2:
             usage = (
@@ -224,7 +223,7 @@ def register(app):
                 "<code>/addfsub @YourChannelUsername</code>\n\n"
                 "• <b>Private Channel:</b>\n"
                 "<code>/addfsub -100xxxxxxxxxx https://t.me/+InviteLink Channel Title</code>\n\n"
-                "💡 <i>Tip: Pehle bot ko us channel me <b>Admin</b> banao taaki bot check kar sake!</i>"
+                "💡 <i>Tip: Pehle bot ko us channel me <b>Admin</b> banayein taaki bot verification kar sake!</i>"
             )
             await message.reply_text(usage, quote=True)
             return
@@ -233,7 +232,6 @@ def register(app):
         invite_link = parts[2].strip() if len(parts) > 2 else ""
         title = parts[3].strip() if len(parts) > 3 else raw_ch
 
-        # Test if bot can access the channel
         target = int(raw_ch) if (raw_ch.startswith("-") and raw_ch[1:].isdigit()) or raw_ch.isdigit() else raw_ch
         if not str(target).startswith("@") and not str(target).startswith("-"):
             target = f"@{target}"
@@ -244,7 +242,7 @@ def register(app):
             title = chat.title or title
             if not invite_link:
                 invite_link = chat.invite_link or (f"https://t.me/{chat.username}" if chat.username else "")
-        except Exception as e:
+        except Exception:
             ch_id = str(raw_ch)
             if not invite_link and raw_ch.startswith("@"):
                 invite_link = f"https://t.me/{raw_ch.replace('@','')}"
@@ -255,7 +253,8 @@ def register(app):
             f"📢 <b>Channel:</b> {esc(title)}\n"
             f"🆔 <b>ID / User:</b> <code>{esc(ch_id)}</code>\n"
             f"🔗 <b>Link:</b> {esc(invite_link or 'N/A')}\n\n"
-            f"Ab sabhi users ko ye channel join karna compulsory hoga!",
+            f"Ab sabhi users ko ye channel join karna compulsory hoga!\n"
+            f"Check all channels with: <code>/fsubs</code>",
             quote=True
         )
 
@@ -273,7 +272,6 @@ def register(app):
 
         raw_ch = parts[1].strip()
         db.del_fsub_channel(raw_ch)
-        # also try removing without @ or with -100
         if raw_ch.startswith("@"):
             db.del_fsub_channel(raw_ch[1:])
         else:
@@ -281,11 +279,12 @@ def register(app):
 
         await message.reply_text(
             f"🗑️ <b>Channel removed from Force-Sub list!</b>\n"
-            f"<code>{esc(raw_ch)}</code> ko Force-Sub list se hata diya gaya hai.",
+            f"<code>{esc(raw_ch)}</code> ko Force-Sub list se hata diya gaya hai.\n"
+            f"Check active list with: <code>/fsubs</code>",
             quote=True
         )
 
-    @app.on_message(filters.command(["fsubs", "channels", "forcesubs"]))
+    @app.on_message(filters.command(["fsubs", "forcesub", "channels", "forcesubs"]))
     async def list_fsubs_cmd(client, message):
         """View all active Force-Sub channels"""
         if not _is_owner_user(message.from_user):
@@ -305,8 +304,8 @@ def register(app):
             text += f"   • Link: {ch.get('url') or 'N/A'}\n\n"
 
         text += "───────────────\n"
-        text += "➕ Naya add karne ke liye: <code>/addfsub @ChannelUsername</code>\n"
-        text += "➖ Hatane ke liye: <code>/delfsub @ChannelUsername</code>"
+        text += "➕ <b>Naya Add Karein:</b>\n<code>/addfsub @ChannelUsername</code>\n\n"
+        text += "➖ <b>Hatane Ke Liye:</b>\n<code>/delfsub @ChannelUsername</code>"
 
         await message.reply_text(text, quote=True)
 
