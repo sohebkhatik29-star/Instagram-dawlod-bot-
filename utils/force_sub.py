@@ -1,32 +1,60 @@
 import logging
 from pyrogram.errors import UserNotParticipant, RPCError, ChatAdminRequired
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, OWNER_LINK
+from config import FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, SUPPORT_GROUP_URL
 from utils.helpers import bold
+from utils import db
 
 log = logging.getLogger("FORCE_SUB")
 
-def clean_channel_id():
-    ch = str(FORCE_SUB_CHANNEL or "MoviesGroupG3").strip()
+def _normalize_target(ch_identifier):
+    ch = str(ch_identifier or "").strip()
     if ch.startswith("https://t.me/"):
         ch = ch.replace("https://t.me/", "")
     if ch.startswith("@"):
         ch = ch[1:]
-    return ch
-
-async def is_subscribed(client, user_id):
-    ch = clean_channel_id()
     if not ch:
-        return True
-
-    # If it's a numeric chat ID (-100...) or username
+        return None
     if ch.startswith("-100") or (ch.startswith("-") and ch[1:].isdigit()):
-        target = int(ch)
+        return int(ch)
     elif ch.isdigit():
-        target = int(f"-100{ch}")
+        return int(f"-100{ch}")
     else:
-        target = f"@{ch}"
+        return f"@{ch}"
 
+def get_all_active_fsubs():
+    """Returns list of dict: [{'id': target_id, 'title': title, 'url': link}]"""
+    channels = []
+    
+    # 1. Default channel from config/env
+    default_ch = str(FORCE_SUB_CHANNEL or "").strip()
+    if default_ch:
+        ch_clean = default_ch.replace("https://t.me/", "").replace("@", "")
+        channels.append({
+            "id": _normalize_target(default_ch),
+            "raw": default_ch,
+            "title": f"@{ch_clean}",
+            "url": UPDATE_CHANNEL_URL or f"https://t.me/{ch_clean}"
+        })
+
+    # 2. Dynamic channels from database
+    db_channels = db.get_all_fsub_channels()
+    for ch_id, title, invite_link in db_channels:
+        norm = _normalize_target(ch_id)
+        # Avoid duplicate if same as default
+        if any(c["raw"] == ch_id or str(c["id"]) == str(norm) for c in channels):
+            continue
+        link = invite_link.strip() if invite_link else (f"https://t.me/{ch_id.replace('@','')}" if not str(ch_id).startswith("-") else None)
+        channels.append({
+            "id": norm,
+            "raw": ch_id,
+            "title": title or str(ch_id),
+            "url": link or f"https://t.me/{str(ch_id).replace('@','')}"
+        })
+
+    return channels
+
+async def check_user_channel(client, user_id, target):
     try:
         member = await client.get_chat_member(target, user_id)
         status = str(getattr(member, "status", "")).lower()
@@ -38,7 +66,7 @@ async def is_subscribed(client, user_id):
     except UserNotParticipant:
         return False
     except ChatAdminRequired:
-        log.warning(f"⚠️ Bot is not an Admin in channel {target}! Add the bot as Admin in your channel for Force-Sub verification to work.")
+        log.warning(f"⚠️ Bot is not an Admin in channel {target}! Please promote bot as Admin for force-sub to work.")
         return True
     except RPCError as e:
         if "USER_NOT_PARTICIPANT" in str(e).upper():
@@ -48,29 +76,59 @@ async def is_subscribed(client, user_id):
     except Exception as e:
         if "USER_NOT_PARTICIPANT" in str(e).upper():
             return False
-        log.warning(f"Error checking subscription for user {user_id}: {e}")
+        log.warning(f"Error checking subscription for user {user_id} in {target}: {e}")
         return True
 
-def join_markup():
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("📢 Join Updates Channel", url=UPDATE_CHANNEL_URL)
-        ],
-        [
-            InlineKeyboardButton("✅ I've Joined — Unlock Bot", callback_data="check_sub")
-        ],
-        [
-            InlineKeyboardButton("👑 Owner Support", url=OWNER_LINK)
-        ]
-    ])
+async def get_unsubscribed_channels(client, user_id):
+    """Returns list of channels user hasn't joined yet"""
+    fsubs = get_all_active_fsubs()
+    unjoined = []
+    for ch in fsubs:
+        target = ch.get("id")
+        if not target:
+            continue
+        subbed = await check_user_channel(client, user_id, target)
+        if not subbed:
+            unjoined.append(ch)
+    return unjoined
 
-def join_text():
-    ch = clean_channel_id()
+async def is_subscribed(client, user_id):
+    unjoined = await get_unsubscribed_channels(client, user_id)
+    return len(unjoined) == 0
+
+def join_markup(unjoined_channels=None):
+    if unjoined_channels is None:
+        unjoined_channels = get_all_active_fsubs()
+
+    buttons = []
+    # Add a join button for each required channel
+    for idx, ch in enumerate(unjoined_channels, 1):
+        btn_label = f"📢 Join Channel {idx}" if len(unjoined_channels) > 1 else "📢 Join Updates Channel"
+        if ch.get("title") and not ch.get("title").startswith("-"):
+            btn_label = f"📢 Join {ch['title']}"
+        buttons.append([InlineKeyboardButton(btn_label, url=ch["url"])])
+
+    # Check button
+    buttons.append([InlineKeyboardButton("✅ I've Joined — Unlock Bot", callback_data="check_sub")])
+
+    # Discussion Group
+    buttons.append([InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL)])
+
+    return InlineKeyboardMarkup(buttons)
+
+def join_text(unjoined_channels=None):
+    if unjoined_channels is None:
+        unjoined_channels = get_all_active_fsubs()
+
+    ch_list_str = ""
+    for idx, ch in enumerate(unjoined_channels, 1):
+        ch_list_str += f"{idx}. <b>{ch['title']}</b>\n"
+
     return bold(
-        f"🔒 <b>Channel Join Required!</b>\n\n"
-        f"Aapne abhi tak hamara official updates channel join nahi kiya hai.\n\n"
-        f"Bot use karne ke liye pehle niche diye gaye channel ko join karein:\n"
-        f"📢 <b>Channel:</b> @{ch}\n\n"
-        f"1. <b>'📢 Join Updates Channel'</b> par click karein aur Join karein.\n"
-        f"2. Uske baad <b>'✅ I\\'ve Joined — Unlock Bot'</b> dabayein aur turant download start karein!"
+        "🔒 <b>Channel Join Required!</b>\n\n"
+        "Aapne abhi tak hamare official channels join nahi kiye hain.\n\n"
+        "Bot use karne ke liye pehle niche diye gaye channel(s) ko join karein:\n\n"
+        f"{ch_list_str}\n"
+        "1. Upar diye gaye channel link(s) par click karke <b>Join</b> karein.\n"
+        "2. Uske baad <b>'✅ I\\'ve Joined — Unlock Bot'</b> dabayein aur turant download start karein!"
     )

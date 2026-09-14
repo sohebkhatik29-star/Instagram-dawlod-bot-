@@ -1,25 +1,23 @@
 import os, uuid, asyncio, traceback, time, subprocess
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import DOWNLOAD_DIR, UPDATE_CHANNEL_URL, OWNER_LINK, FORCE_SUB_CHANNEL
+from config import DOWNLOAD_DIR, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL
 from utils.helpers import bold, esc, human_size, progress_bar, Throttle, extract_instagram_links, is_private_chat
-from utils.force_sub import is_subscribed, join_markup, join_text
+from utils.force_sub import is_subscribed, join_markup, join_text, get_unsubscribed_channels
 from utils import db
 
 CAPTION_STORE = {}
 URL_CACHE = {}  # token -> {"url": url, "user_id": user_id, "time": timestamp}
 
 def _media_buttons(token, has_caption=True):
-    buttons = [
-        [
-            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
-            InlineKeyboardButton("👑 Owner Support", url=OWNER_LINK),
-        ]
-    ]
+    buttons = []
     if has_caption:
         buttons.append([
             InlineKeyboardButton("📝 View Post Caption", callback_data=f"cap_{token}")
         ])
+    buttons.append([
+        InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL)
+    ])
     return InlineKeyboardMarkup(buttons)
 
 def _download_choice_markup(token):
@@ -30,10 +28,6 @@ def _download_choice_markup(token):
         [
             InlineKeyboardButton("📹 MP4 Video Only (Mute)", callback_data=f"dl_vidonly_{token}"),
             InlineKeyboardButton("🎵 MP3 Audio Only", callback_data=f"dl_mp3_{token}"),
-        ],
-        [
-            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
-            InlineKeyboardButton("👑 Owner Support", url=OWNER_LINK),
         ]
     ])
 
@@ -104,7 +98,6 @@ async def _ytdlp_download(url, out_tpl, loop, status, throttle, mode="full"):
             caption = info.get("description") or info.get("title") or ""
             filename = ydl.prepare_filename(info)
             if mode == "mp3":
-                # filename will end in .mp3 after postprocessing
                 base, _ = os.path.splitext(filename)
                 mp3_file = base + ".mp3"
                 if os.path.exists(mp3_file):
@@ -176,7 +169,7 @@ async def ask_format_choice(client, message, url):
         "2️⃣ <b>MP4 Video Only</b> — Video without audio (Muted)\n"
         "3️⃣ <b>MP3 Audio Only</b> — Extract Background Music/Audio\n\n"
         "───────────────\n"
-        f"📢 @{FORCE_SUB_CHANNEL} | 👑 @movies_1780"
+        "💬 <b>Join Discussion Group:</b> https://t.me/ash_movie_j"
     )
 
     await message.reply_text(
@@ -274,8 +267,8 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
             f"🎬 <b>Downloaded with Ash Insta Downloader Bot</b> ⚡\n\n"
             f"📦 <b>Format:</b> {mode_title}\n"
             f"👤 <b>Requested by:</b> {user_mention}\n"
-            f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-            f"👑 <b>Owner & Dev:</b> @movies_1780\n\n"
+            f"💬 <b>Discussion Group:</b> @ash_movie_j\n"
+            f"👑 <b>Owner:</b> @movies_1780\n\n"
             "✨ <i>HD Quality • High Speed • Always Free</i>"
         )
 
@@ -314,7 +307,7 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
             f"❌ <b>Failed to download {mode_title}.</b>\n\n"
             f"This can happen with private accounts or expired stories.\n"
             f"<code>Error: {esc(str(e))[:200]}</code>\n\n"
-            f"👑 <b>Contact Support:</b> @movies_1780"
+            f"💬 <b>Discussion Group:</b> @ash_movie_j"
         )
     finally:
         try:
@@ -334,8 +327,9 @@ def register(app):
         links = extract_instagram_links(message.text)
         if not links: return
         if is_private_chat(message):
-            if not await is_subscribed(client, message.from_user.id):
-                await message.reply_text(join_text(), reply_markup=join_markup(), quote=True)
+            unjoined = await get_unsubscribed_channels(client, message.from_user.id)
+            if unjoined:
+                await message.reply_text(join_text(unjoined), reply_markup=join_markup(unjoined), quote=True)
                 return
         for link in links[:3]:
             await ask_format_choice(client, message, link)
@@ -346,8 +340,9 @@ def register(app):
             await message.reply_text(bold("Usage: /dl <instagram link>"), quote=True)
             return
         if is_private_chat(message):
-            if not await is_subscribed(client, message.from_user.id):
-                await message.reply_text(join_text(), reply_markup=join_markup(), quote=True)
+            unjoined = await get_unsubscribed_channels(client, message.from_user.id)
+            if unjoined:
+                await message.reply_text(join_text(unjoined), reply_markup=join_markup(unjoined), quote=True)
                 return
         await ask_format_choice(client, message, message.command[1])
 
@@ -360,9 +355,10 @@ def register(app):
             return
 
         # Check Force Sub once more
-        if not await is_subscribed(client, cq.from_user.id):
-            await cq.answer("🔒 Please join our channel first!", show_alert=True)
-            await cq.message.reply_text(join_text(), reply_markup=join_markup(), quote=True)
+        unjoined = await get_unsubscribed_channels(client, cq.from_user.id)
+        if unjoined:
+            await cq.answer("🔒 Please join all required channels first!", show_alert=True)
+            await cq.message.reply_text(join_text(unjoined), reply_markup=join_markup(unjoined), quote=True)
             return
 
         await cq.answer(f"⏳ Starting {mode.upper()} download...")
@@ -391,6 +387,6 @@ def register(app):
             f"📝 <b>Original Instagram Post Caption:</b>\n\n"
             f"{esc(cap)}\n\n"
             "───────────────\n"
-            f"📢 @{FORCE_SUB_CHANNEL} | 👑 @movies_1780",
+            "💬 <b>Discussion Group:</b> https://t.me/ash_movie_j",
             quote=True
         )

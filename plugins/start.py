@@ -2,32 +2,29 @@ import time
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.helpers import bold, esc, is_private_chat
-from utils.force_sub import is_subscribed, join_markup, join_text
+from utils.force_sub import is_subscribed, join_markup, join_text, get_unsubscribed_channels
 from utils import db
-from config import BOT_NAME, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, OWNER_LINK
+from config import BOT_NAME, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, SUPPORT_GROUP_URL, OWNER_LINK
 
 START_TIME = time.time()
 
 def start_menu():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
+            InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
             InlineKeyboardButton("📖 Help & Commands", callback_data="show_help"),
         ],
         [
             InlineKeyboardButton("ℹ️ About Bot", callback_data="show_about"),
-            InlineKeyboardButton("👑 Owner (@movies_1780)", url=OWNER_LINK),
-        ],
-        [
             InlineKeyboardButton("🏓 Ping & Status", callback_data="show_ping"),
-        ],
+        ]
     ])
 
 def back_menu():
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"),
-            InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
+            InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
         ]
     ])
 
@@ -49,8 +46,8 @@ def get_welcome_text(user):
         f"Send any Instagram Reel, Video, or Post link here and I will download it for you instantly in high quality!\n\n"
         f"ℹ️ <b>More info to click Help button below!</b>\n\n"
         f"───────────────\n"
-        f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-        f"👑 <b>Owner / Developer:</b> @movies_1780"
+        f"💬 <b>Discussion Group:</b> @ash_movie_j\n"
+        f"👑 <b>Owner:</b> @movies_1780"
     )
 
 def get_about_text():
@@ -63,13 +60,12 @@ def get_about_text():
         f"ℹ️ <b>About Ash Insta Downloader Bot</b>\n\n"
         f"• <b>Bot Name:</b> Ash Insta Downloader Bot\n"
         f"• <b>Developer & Owner:</b> @movies_1780\n"
-        f"• <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-        f"• <b>Owner Profile:</b> {OWNER_LINK}\n"
+        f"• <b>Discussion Group:</b> @ash_movie_j\n"
         f"• <b>Engine:</b> Python 3 + Pyrogram 2.0 + High-Speed yt-dlp\n"
         f"• <b>Quality:</b> Original Full HD (1080p)\n"
         f"• <b>Uptime:</b> {uptime_str}\n"
         f"• <b>Status:</b> 24/7 Always Online\n\n"
-        f"💡 Need help or customized bots? Feel free to contact @movies_1780!"
+        f"💡 Need help or join community? Visit our Discussion Group: https://t.me/ash_movie_j"
     )
 
 def register(app):
@@ -85,16 +81,16 @@ def register(app):
         if not is_private_chat(message):
             db.add_chat(message.chat.id, message.chat.title or "")
             await message.reply_text(
-                bold(f"👋 Hey {esc(user.first_name)}! I'm {BOT_NAME}.\n\nSend any Instagram link here and I will download it for you!\nUse the buttons below to check commands or join our updates channel."),
+                bold(f"👋 Hey {esc(user.first_name)}! I'm {BOT_NAME}.\n\nSend any Instagram link here and I will download it for you!\nUse the buttons below to check commands or join our discussion group."),
                 reply_markup=start_menu(),
                 quote=True
             )
             return
 
-        # Private Chat: Check Force-Subscribe to @MoviesGroupG3
-        subbed = await is_subscribed(client, user.id)
-        if not subbed:
-            await message.reply_text(join_text(), reply_markup=join_markup(), quote=True)
+        # Private Chat: Check Force-Subscribe to all required channels
+        unjoined = await get_unsubscribed_channels(client, user.id)
+        if unjoined:
+            await message.reply_text(join_text(unjoined), reply_markup=join_markup(unjoined), quote=True)
             return
 
         caption = get_welcome_text(user)
@@ -112,8 +108,8 @@ def register(app):
 
     @app.on_callback_query(filters.regex("^check_sub$"))
     async def check_sub_cb(client, cq):
-        subbed = await is_subscribed(client, cq.from_user.id)
-        if subbed:
+        unjoined = await get_unsubscribed_channels(client, cq.from_user.id)
+        if not unjoined:
             await cq.answer("✅ Verified! Welcome to the bot.", show_alert=True)
             try:
                 await cq.message.edit_text(get_welcome_text(cq.from_user), reply_markup=start_menu())
@@ -121,7 +117,11 @@ def register(app):
                 await cq.message.delete()
                 await client.send_message(cq.from_user.id, get_welcome_text(cq.from_user), reply_markup=start_menu())
         else:
-            await cq.answer(f"❌ You haven't joined @{FORCE_SUB_CHANNEL} yet! Please join first.", show_alert=True)
+            await cq.answer("❌ You haven't joined all required channels yet! Please join first.", show_alert=True)
+            try:
+                await cq.message.edit_text(join_text(unjoined), reply_markup=join_markup(unjoined))
+            except Exception:
+                pass
 
     @app.on_callback_query(filters.regex("^show_about$"))
     async def about_cb(client, cq):
@@ -145,7 +145,7 @@ def register(app):
         start = time.time()
         await cq.answer("Checking ping...")
         ms = (time.time() - start) * 1000
-        text = bold(f"🏓 <b>Pong Latency:</b> <code>{ms:.2f} ms</code>\n🚀 <b>Server Status:</b> Running at 100% speed\n👑 <b>Owner:</b> @movies_1780")
+        text = bold(f"🏓 <b>Pong Latency:</b> <code>{ms:.2f} ms</code>\n🚀 <b>Server Status:</b> Running at 100% speed\n💬 <b>Discussion Group:</b> @ash_movie_j\n👑 <b>Owner:</b> @movies_1780")
         try:
             await cq.message.edit_text(text, reply_markup=back_menu())
         except Exception:

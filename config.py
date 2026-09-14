@@ -23,6 +23,7 @@ SUDO_USERS        = [int(x) for x in os.environ.get("SUDO_USERS", "").split(",")
 # Official Channels & Branding for @movies_1780
 FORCE_SUB_CHANNEL = os.environ.get("FORCE_SUB_CHANNEL", "MoviesGroupG3")
 UPDATE_CHANNEL_URL = os.environ.get("UPDATE_CHANNEL_URL", "https://t.me/MoviesGroupG3")
+SUPPORT_GROUP_URL = os.environ.get("SUPPORT_GROUP_URL", "https://t.me/ash_movie_j")
 OWNER_LINK        = os.environ.get("OWNER_LINK", "https://t.me/movies_1780")
 BOT_NAME          = os.environ.get("BOT_NAME", "Ash Insta Downloader Bot")
 DOWNLOAD_DIR      = os.environ.get("DOWNLOAD_DIR", "downloads")

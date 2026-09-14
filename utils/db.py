@@ -6,7 +6,22 @@ _conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False)
 _conn.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT, first_name TEXT)")
 _conn.execute("CREATE TABLE IF NOT EXISTS chats (chat_id INTEGER PRIMARY KEY, title TEXT)")
 _conn.execute("CREATE TABLE IF NOT EXISTS warns (chat_id INTEGER, user_id INTEGER, count INTEGER DEFAULT 0, PRIMARY KEY(chat_id, user_id))")
+_conn.execute("CREATE TABLE IF NOT EXISTS force_sub_channels (channel_id TEXT PRIMARY KEY, title TEXT, invite_link TEXT)")
 _conn.commit()
+
+def add_fsub_channel(channel_id, title, invite_link):
+    with _lock:
+        _conn.execute("INSERT INTO force_sub_channels VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET title=excluded.title,invite_link=excluded.invite_link", (str(channel_id), title or "", invite_link or ""))
+        _conn.commit()
+
+def del_fsub_channel(channel_id):
+    with _lock:
+        _conn.execute("DELETE FROM force_sub_channels WHERE channel_id=?", (str(channel_id),))
+        _conn.commit()
+
+def get_all_fsub_channels():
+    with _lock:
+        return _conn.execute("SELECT channel_id, title, invite_link FROM force_sub_channels").fetchall()
 
 def add_user(user_id, username, first_name):
     with _lock:
