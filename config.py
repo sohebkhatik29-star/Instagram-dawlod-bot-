@@ -17,15 +17,15 @@ if not BOT_TOKEN:
 
 # Owner & Sudo Configuration
 OWNER_USERNAMES   = ["movies_1780", "killchorgamming90"]
-_default_owners   = [8378171861]
+_default_owners   = [8378171861, 8192070400]
 OWNER_IDS         = list(set(_default_owners + [int(x) for x in os.environ.get("OWNER_IDS", "").split(",") if x.strip().isdigit()]))
 SUDO_USERS        = [int(x) for x in os.environ.get("SUDO_USERS", "").split(",") if x.strip().isdigit()]
 
-# Official Channels & Branding for @movies_1780
+# Official Channels & Branding
 FORCE_SUB_CHANNEL = os.environ.get("FORCE_SUB_CHANNEL", "MoviesGroupG3")
 UPDATE_CHANNEL_URL = os.environ.get("UPDATE_CHANNEL_URL", "https://t.me/MoviesGroupG3")
 SUPPORT_GROUP_URL = os.environ.get("SUPPORT_GROUP_URL", "https://t.me/ash_movie_j")
-OWNER_LINK        = os.environ.get("OWNER_LINK", "https://t.me/movies_1780")
+LOG_CHANNEL_ID    = int(os.environ.get("LOG_CHANNEL_ID", "-1004350432978"))
 BOT_NAME          = os.environ.get("BOT_NAME", "Ash Insta Downloader Bot")
 DOWNLOAD_DIR      = os.environ.get("DOWNLOAD_DIR", "downloads")
 DATABASE_FILE     = os.environ.get("DATABASE_FILE", "bot_database.db")

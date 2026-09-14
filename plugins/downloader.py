@@ -1,9 +1,10 @@
 import os, uuid, asyncio, traceback, time, subprocess
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import DOWNLOAD_DIR, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL
+from config import DOWNLOAD_DIR, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL
 from utils.helpers import bold, esc, human_size, progress_bar, Throttle, extract_instagram_links, is_private_chat
 from utils.force_sub import is_subscribed, join_markup, join_text, get_unsubscribed_channels
+from utils.logger import log_download
 from utils import db
 
 CAPTION_STORE = {}
@@ -16,6 +17,7 @@ def _media_buttons(token, has_caption=True):
             InlineKeyboardButton("📝 View Post Caption", callback_data=f"cap_{token}")
         ])
     buttons.append([
+        InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
         InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL)
     ])
     return InlineKeyboardMarkup(buttons)
@@ -58,7 +60,7 @@ async def _ytdlp_download(url, out_tpl, loop, status, throttle, mode="full"):
                     f"⚡ <b>Downloading Instagram Media...</b>\n\n"
                     f"{progress_bar(pct)}\n"
                     f"📊 <b>Progress:</b> <code>{human_size(done)} / {human_size(total)}</code> ({pct:.1f}%)\n"
-                    "👑 <b>Owner:</b> @movies_1780"
+                    f"📢 <b>Updates:</b> @{FORCE_SUB_CHANNEL}"
                 )
                 asyncio.run_coroutine_threadsafe(_safe_edit(status, text), loop)
 
@@ -249,7 +251,7 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
                     "📤 <b>Uploading to Telegram...</b>\n\n"
                     f"{progress_bar(pct)}\n"
                     f"📊 <b>Uploaded:</b> <code>{human_size(cur)} / {human_size(tot)}</code> ({pct:.1f}%)\n"
-                    "👑 <b>Owner:</b> @movies_1780"
+                    f"📢 <b>Updates:</b> @{FORCE_SUB_CHANNEL}"
                 )
 
         if user:
@@ -267,8 +269,8 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
             f"🎬 <b>Downloaded with Ash Insta Downloader Bot</b> ⚡\n\n"
             f"📦 <b>Format:</b> {mode_title}\n"
             f"👤 <b>Requested by:</b> {user_mention}\n"
-            f"💬 <b>Discussion Group:</b> @ash_movie_j\n"
-            f"👑 <b>Owner:</b> @movies_1780\n\n"
+            f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
+            f"💬 <b>Discussion Group:</b> @ash_movie_j\n\n"
             "✨ <i>HD Quality • High Speed • Always Free</i>"
         )
 
@@ -290,7 +292,7 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
             await client.send_audio(
                 audio=filepath,
                 title="Instagram Audio",
-                performer="@movies_1780",
+                performer="Ash Insta Downloader",
                 **kw
             )
         elif is_video:
@@ -299,6 +301,12 @@ async def execute_download(client, target_chat_id, reply_to_msg_id, user, url, m
             await client.send_photo(photo=filepath, **kw)
 
         await status.delete()
+
+        # Send download event to Log Channel
+        try:
+            await log_download(client, user, mode_title, url)
+        except Exception:
+            pass
 
     except Exception as e:
         traceback.print_exc()

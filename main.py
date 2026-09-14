@@ -7,8 +7,9 @@ from utils.autoinstall import ensure_dependencies
 ensure_dependencies()
 
 from pyrogram import Client, idle
-from config import API_ID, API_HASH, BOT_TOKEN, PORT, BOT_NAME, OWNER_LINK, UPDATE_CHANNEL_URL
+from config import API_ID, API_HASH, BOT_TOKEN, PORT, BOT_NAME, UPDATE_CHANNEL_URL, SUPPORT_GROUP_URL
 from web_server import run_web_server
+from utils.logger import log_bot_restart
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,8 +66,15 @@ async def run_bot():
         log.warning(f"Could not register bot commands menu: {e}")
 
     log.info(f"✅ Bot successfully running as @{me.username}!")
-    log.info(f"👑 Owner: @movies_1780 ({OWNER_LINK})")
     log.info(f"📢 Updates Channel: {UPDATE_CHANNEL_URL}")
+    log.info(f"💬 Discussion Group: {SUPPORT_GROUP_URL}")
+
+    # Notify log channel that bot restarted
+    try:
+        await log_bot_restart(app, me)
+    except Exception as e:
+        log.warning(f"Could not send restart log: {e}")
+
     await idle()
     await app.stop()
 

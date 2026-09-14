@@ -4,7 +4,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.helpers import bold, esc, is_private_chat
 from utils.force_sub import is_subscribed, join_markup, join_text, get_unsubscribed_channels
 from utils import db
-from config import BOT_NAME, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, SUPPORT_GROUP_URL, OWNER_LINK
+from utils.logger import log_new_user
+from config import BOT_NAME, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL, SUPPORT_GROUP_URL
 
 START_TIME = time.time()
 
@@ -19,7 +20,6 @@ def start_menu():
             InlineKeyboardButton("ℹ️ About Bot", callback_data="show_about"),
         ],
         [
-            InlineKeyboardButton("👑 Owner Support", url=OWNER_LINK),
             InlineKeyboardButton("🏓 Ping & Status", callback_data="show_ping"),
         ]
     ])
@@ -54,8 +54,7 @@ def get_welcome_text(user):
         f"ℹ️ <b>More info to click Help button below!</b>\n\n"
         f"───────────────\n"
         f"📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
-        f"💬 <b>Discussion Group:</b> @ash_movie_j\n"
-        f"👑 <b>Owner:</b> @movies_1780"
+        f"💬 <b>Discussion Group:</b> @ash_movie_j"
     )
 
 def get_about_text():
@@ -67,7 +66,7 @@ def get_about_text():
     return (
         f"ℹ️ <b>About Ash Insta Downloader Bot</b>\n\n"
         f"• <b>Bot Name:</b> Ash Insta Downloader Bot\n"
-        f"• <b>Developer & Owner:</b> @movies_1780\n"
+        f"• <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n"
         f"• <b>Discussion Group:</b> @ash_movie_j\n"
         f"• <b>Engine:</b> Python 3 + Pyrogram 2.0 + High-Speed yt-dlp\n"
         f"• <b>Quality:</b> Original Full HD (1080p)\n"
@@ -83,7 +82,13 @@ def register(app):
         if not user:
             return
 
-        db.add_user(user.id, user.username or "", user.first_name or "")
+        is_new = db.add_user(user.id, user.username or "", user.first_name or "")
+        if is_new:
+            try:
+                tot_u, _ = db.stats()
+                await log_new_user(client, user, tot_u)
+            except Exception:
+                pass
 
         # If in a group chat
         if not is_private_chat(message):
@@ -153,7 +158,7 @@ def register(app):
         start = time.time()
         await cq.answer("Checking ping...")
         ms = (time.time() - start) * 1000
-        text = bold(f"🏓 <b>Pong Latency:</b> <code>{ms:.2f} ms</code>\n🚀 <b>Server Status:</b> Running at 100% speed\n💬 <b>Discussion Group:</b> @ash_movie_j\n👑 <b>Owner:</b> @movies_1780")
+        text = bold(f"🏓 <b>Pong Latency:</b> <code>{ms:.2f} ms</code>\n🚀 <b>Server Status:</b> Running at 100% speed\n📢 <b>Updates Channel:</b> @{FORCE_SUB_CHANNEL}\n💬 <b>Discussion Group:</b> @ash_movie_j")
         try:
             await cq.message.edit_text(text, reply_markup=back_menu())
         except Exception:

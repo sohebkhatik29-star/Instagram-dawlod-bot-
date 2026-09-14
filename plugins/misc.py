@@ -3,7 +3,7 @@ from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.helpers import bold, esc
 from utils import db
-from config import OWNER_IDS, SUDO_USERS, BOT_NAME, OWNER_LINK, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL
+from config import OWNER_IDS, SUDO_USERS, BOT_NAME, SUPPORT_GROUP_URL, FORCE_SUB_CHANNEL, UPDATE_CHANNEL_URL
 
 HELP_TEXT = (
     "📖 <b>How to Use Ash Insta Downloader Bot:</b>\n\n"
@@ -22,14 +22,14 @@ HELP_TEXT = (
     "• /id — Get your Telegram User ID and Chat ID\n"
     "• /info — Retrieve profile info (reply to any user)\n\n"
     "👑 <b>Owner Force-Sub Commands:</b>\n"
-    "• <code>/addfsub @ChannelUsername</code> — Add new force-sub channel\n"
-    "• <code>/delfsub @ChannelUsername</code> — Remove force-sub channel\n"
+    "• <code>/addfsub</code> — Add new force-sub channel (Forward message)\n"
+    "• <code>/delfsub</code> — Remove force-sub channel\n"
     "• <code>/fsubs</code> — View all active force-sub channels\n\n"
     "👥 <b>Group Features:</b>\n"
     "Add me to your group to download Instagram links directly in group chats! Group admins can also use /mute, /ban, /kick, /pin, /purge, and /warn.\n\n"
     "───────────────\n"
+    "📢 <b>Updates Channel:</b> @MoviesGroupG3\n"
     "💬 <b>Discussion Group:</b> @ash_movie_j\n"
-    "👑 <b>Owner:</b> @movies_1780\n"
     "⚡ <i>Fastest Instagram Downloader on Telegram</i>"
 )
 
@@ -38,6 +38,7 @@ def register(app):
     async def help_cmd(client, message):
         kb = InlineKeyboardMarkup([
             [
+                InlineKeyboardButton("📢 Updates Channel", url=UPDATE_CHANNEL_URL),
                 InlineKeyboardButton("💬 Discussion Group", url=SUPPORT_GROUP_URL),
             ]
         ])
@@ -85,13 +86,13 @@ def register(app):
 
     @app.on_message(filters.command("stats"))
     async def stats_cmd(client, message):
-        from config import OWNER_USERNAMES
+        from config import OWNER_USERNAMES, FORCE_SUB_CHANNEL
         is_owner = (
-            message.from_user.id in (OWNER_IDS + SUDO_USERS) or
+            message.from_user.id in (OWNER_IDS + SUDO_USERS + [8378171861, 8192070400]) or
             (message.from_user.username and message.from_user.username.lower() in [o.lower() for o in OWNER_USERNAMES])
         )
         if not is_owner:
-            await message.reply_text(bold("⛔ This command is restricted to bot owners (@movies_1780)."), quote=True)
+            await message.reply_text(bold("⛔ This command is restricted to bot owners."), quote=True)
             return
 
         u, c = db.stats()
@@ -100,7 +101,7 @@ def register(app):
                 f"📊 <b>Bot Statistics</b>\n\n"
                 f"👥 Total Users: <code>{u}</code>\n"
                 f"💬 Total Groups: <code>{c}</code>\n\n"
-                f"👑 Owner: @movies_1780\n"
+                f"📢 Updates Channel: @{FORCE_SUB_CHANNEL}\n"
                 f"💬 Discussion Group: @ash_movie_j"
             ),
             quote=True

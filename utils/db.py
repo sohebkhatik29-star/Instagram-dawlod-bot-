@@ -25,8 +25,11 @@ def get_all_fsub_channels():
 
 def add_user(user_id, username, first_name):
     with _lock:
+        row = _conn.execute("SELECT 1 FROM users WHERE user_id=?", (user_id,)).fetchone()
+        is_new = row is None
         _conn.execute("INSERT INTO users VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET username=excluded.username,first_name=excluded.first_name", (user_id, username or "", first_name or ""))
         _conn.commit()
+        return is_new
 
 def add_chat(chat_id, title):
     with _lock:

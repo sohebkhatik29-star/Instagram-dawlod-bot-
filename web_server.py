@@ -15,8 +15,8 @@ def index():
         return send_from_directory("web", "index.html")
     return jsonify({
         "status": "online",
-        "bot": "Movies Instagram Downloader Bot",
-        "owner": "@movies_1780",
+        "bot": "Ash Insta Downloader Bot",
+        "group": "https://t.me/ash_movie_j",
         "updates": "https://t.me/MoviesGroupG3"
     })
 
@@ -25,8 +25,8 @@ def health():
     return jsonify({
         "status": "online",
         "uptime_seconds": int(time.time() - START_TIME),
-        "bot_name": "Movies Instagram Downloader",
-        "owner": "@movies_1780",
+        "bot_name": "Ash Insta Downloader Bot",
+        "group": "https://t.me/ash_movie_j",
         "channel": "https://t.me/MoviesGroupG3"
     })
 
