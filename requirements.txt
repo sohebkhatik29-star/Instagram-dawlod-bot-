@@ -1,4 +1,4 @@
-pyrofork
+kurigram
 TgCrypto
 yt-dlp
 instaloader

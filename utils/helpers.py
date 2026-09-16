@@ -23,6 +23,22 @@ def extract_instagram_links(text):
     if not text: return []
     return INSTAGRAM_REGEX.findall(text)
 
+def clean_instagram_url(url: str) -> str:
+    """Strips query parameters like ?img_index=6 so all post/carousel media items are downloaded."""
+    if not url: return ""
+    m = re.search(r"(https?://(?:www\.)?instagram\.com/(?:reel|reels|p|tv|share|stories)/[A-Za-z0-9_-]+)", url, re.IGNORECASE)
+    if m:
+        base = m.group(1).rstrip("/")
+        # Normalize reels to reel
+        base = re.sub(r"/reels/", "/reel/", base, flags=re.IGNORECASE)
+        return base + "/"
+    return url.split("?")[0].rstrip("/") + "/"
+
+def is_reel_or_video_url(url: str) -> bool:
+    """Returns True if the URL points explicitly to a reel, video, or tv."""
+    u = url.lower()
+    return "/reel/" in u or "/reels/" in u or "/tv/" in u
+
 def human_size(n):
     if not n: return "0 B"
     for u in ["B","KB","MB","GB"]:
