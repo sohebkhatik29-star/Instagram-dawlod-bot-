@@ -90,8 +90,17 @@ async def run_bot():
     except Exception as e:
         log.warning(f"Could not send restart log: {e}")
 
-    await idle()
-    await app.stop()
+    # Keep bot running continuously 24/7 without premature termination
+    stop_event = asyncio.Event()
+    try:
+        await stop_event.wait()
+    except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+        log.info("Stopping bot gracefully...")
+    finally:
+        try:
+            await app.stop()
+        except Exception:
+            pass
 
 def main():
     log.info(f"🚀 Booting {BOT_NAME}...")

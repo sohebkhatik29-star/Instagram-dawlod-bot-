@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 import logging
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -95,52 +96,73 @@ async def _edit_or_reply(cq, text, reply_markup=None):
         pass
 
 def register(app):
-    @app.on_message(filters.command("start"))
+    @app.on_message((filters.command(["start", "startbot"]) | filters.regex(r"^/start")), group=0)
     async def start_cmd(client, message):
-        user = message.from_user
-        if not user:
-            return
+        try:
+            user = message.from_user
+            if not user:
+                return
 
-        is_new = db.add_user(user.id, user.username or "", user.first_name or "")
-        if is_new:
+            log.info(f"[/start] Received from user {user.id} (@{user.username or 'none'})")
+
             try:
-                tot_u, _ = db.stats()
-                await log_new_user(client, user, tot_u)
+                is_new = db.add_user(user.id, user.username or "", user.first_name or "")
+                if is_new:
+                    tot_u, _ = db.stats()
+                    asyncio.create_task(log_new_user(client, user, tot_u))
+            except Exception as e:
+                log.warning(f"DB error in start: {e}")
+
+            is_owner = is_owner_user(user)
+
+            # If in a group chat
+            if not is_private_chat(message):
+                try:
+                    db.add_chat(message.chat.id, message.chat.title or "")
+                except Exception:
+                    pass
+                await message.reply_text(
+                    bold(f"👋 Hey {esc(user.first_name)}! I'm {BOT_NAME}.\n\nSend any Instagram link here and I will download it for you!\nUse the buttons below to check commands or join our discussion group."),
+                    reply_markup=start_menu(is_owner),
+                    quote=True
+                )
+                return
+
+            # Non-blocking registration of owner commands menu
+            if is_owner:
+                asyncio.create_task(ensure_owner_commands(client, message.chat.id))
+
+            caption = get_welcome_text(user)
+
+            photo_to_send = None
+            if os.path.exists(START_PIC_PATH):
+                photo_to_send = START_PIC_PATH
+            elif START_PHOTO_URL:
+                photo_to_send = START_PHOTO_URL
+
+            sent = False
+            if photo_to_send:
+                try:
+                    await asyncio.wait_for(
+                        message.reply_photo(photo=photo_to_send, caption=caption, reply_markup=start_menu(is_owner), quote=True),
+                        timeout=5.0
+                    )
+                    sent = True
+                except Exception as e:
+                    log.warning(f"Could not send start photo banner: {e}")
+
+            if not sent:
+                await message.reply_text(caption, reply_markup=start_menu(is_owner), quote=True)
+        except Exception as e:
+            log.error(f"Fatal error in start_cmd: {e}", exc_info=True)
+            try:
+                await message.reply_text(
+                    f"👋 Welcome to <b>{BOT_NAME}</b>!\n\nSend me any Instagram link to download.",
+                    reply_markup=start_menu(is_owner_user(message.from_user)),
+                    quote=True
+                )
             except Exception:
                 pass
-
-        is_owner = is_owner_user(user)
-
-        # If in a group chat
-        if not is_private_chat(message):
-            db.add_chat(message.chat.id, message.chat.title or "")
-            await message.reply_text(
-                bold(f"👋 Hey {esc(user.first_name)}! I'm {BOT_NAME}.\n\nSend any Instagram link here and I will download it for you!\nUse the buttons below to check commands or join our discussion group."),
-                reply_markup=start_menu(is_owner),
-                quote=True
-            )
-            return
-
-        # Private Chat: Start bot directly without blocking on /start
-        if is_owner:
-            await ensure_owner_commands(client, message.chat.id)
-
-        caption = get_welcome_text(user)
-
-        photo_to_send = None
-        if os.path.exists(START_PIC_PATH):
-            photo_to_send = START_PIC_PATH
-        elif START_PHOTO_URL:
-            photo_to_send = START_PHOTO_URL
-
-        if photo_to_send:
-            try:
-                await message.reply_photo(photo=photo_to_send, caption=caption, reply_markup=start_menu(is_owner), quote=True)
-                return
-            except Exception as e:
-                log.warning(f"Could not send start photo banner: {e}")
-
-        await message.reply_text(caption, reply_markup=start_menu(is_owner), quote=True)
 
     @app.on_callback_query(filters.regex("^check_sub$"))
     async def check_sub_cb(client, cq):

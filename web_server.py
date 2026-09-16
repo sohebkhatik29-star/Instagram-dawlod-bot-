@@ -84,5 +84,21 @@ def web_download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _keep_alive_loop(port):
+    import urllib.request
+    time.sleep(30)
+    while True:
+        try:
+            render_url = os.environ.get("RENDER_EXTERNAL_URL")
+            url = f"{render_url}/health" if render_url else f"http://127.0.0.1:{port}/health"
+            req = urllib.request.Request(url, headers={"User-Agent": "BotKeepAlive/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+        except Exception:
+            pass
+        time.sleep(600)
+
 def run_web_server(port):
+    import threading
+    threading.Thread(target=_keep_alive_loop, args=(port,), daemon=True).start()
     app.run(host="0.0.0.0", port=port, threaded=True)
