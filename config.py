@@ -7,11 +7,11 @@ except Exception:
     pass
 
 # Telegram API credentials from https://my.telegram.org
-API_ID   = int(os.environ.get("API_ID", "0"))
-API_HASH = os.environ.get("API_HASH", "")
+API_ID   = int(os.environ.get("API_ID", "30720676"))
+API_HASH = os.environ.get("API_HASH", "a078e3476750afbd6db7d6c5e5e658d9")
 
 # Telegram Bot Token from @BotFather
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8787823232:AAGH7QPCSvgV_nJ2Hi-9XasY-3yjm6mvHDc")
 if not BOT_TOKEN:
     print("⚠️ WARNING: BOT_TOKEN is not set yet. Set BOT_TOKEN in .env or environment variables.")
 
